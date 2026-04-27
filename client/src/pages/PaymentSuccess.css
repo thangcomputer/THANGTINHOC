@@ -1,0 +1,40 @@
+.success-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 2rem;
+}
+.success-bg { position: fixed; inset: 0; background: var(--bg-dark); }
+.success-orb { position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(16, 185, 129, 0.2), transparent); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.success-card {
+  position: relative;
+  z-index: 1;
+  max-width: 500px;
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 3rem 2rem;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+.success-icon {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 2rem;
+  box-shadow: 0 0 40px rgba(16, 185, 129, 0.4);
+  animation: glow 2s ease-in-out infinite;
+}
+.success-card h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.75rem; }
+.success-card > p { color: var(--text-secondary); margin-bottom: 1.5rem; }
+.success-courses { background: var(--bg-card2); border-radius: var(--radius); padding: 1rem; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; text-align: left; }
+.success-course-item { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; }
+.success-note { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 2rem; }
+.success-actions { display: flex; flex-direction: column; gap: 0.75rem; }

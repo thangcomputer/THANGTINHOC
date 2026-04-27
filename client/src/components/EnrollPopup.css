@@ -1,0 +1,226 @@
+/* ===== Overlay — always covers full viewport via React Portal ===== */
+.enroll-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 99999; /* Higher than everything */
+  background: rgba(0,0,0,0.80);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: enrollFadeIn 0.2s ease;
+  /* Isolation ensures this is its own stacking context */
+  isolation: isolate;
+}
+@keyframes enrollFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ===== Popup Container ===== */
+/* ===== Wrapper — context định vị cho nút X ===== */
+.enroll-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  padding-top: 17px; /* chỗ cho nút X nửa bên trên */
+}
+
+/* ===== Popup Container ===== */
+.enroll-popup {
+  width: 100%;
+  max-height: 88vh;
+  background: linear-gradient(160deg, #0c0a1d, #151236, #1e1a3a);
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 16px;
+  box-shadow: 0 32px 64px rgba(0,0,0,0.6), 0 0 100px rgba(99,102,241,0.06);
+  overflow-y: auto;
+  overflow-x: hidden;
+  color: #e2e8f0;
+  animation: enrollSlideUp 0.3s ease;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99,102,241,0.3) transparent;
+}
+.enroll-popup::-webkit-scrollbar { width: 5px; }
+.enroll-popup::-webkit-scrollbar-track { background: transparent; }
+.enroll-popup::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 10px; }
+@keyframes enrollSlideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* ===== Close — ngồi đúng trên cạnh trên form ===== */
+.enroll-close {
+  position: absolute;
+  top: 0;
+  right: 16px;
+  transform: translateY(0);
+  z-index: 10;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #1e1a3a;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+.enroll-close:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  transform: rotate(90deg);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+/* ===== Tabs ===== */
+.enroll-tabs {
+  display: flex; border-bottom: 2px solid rgba(255,255,255,0.06);
+  position: sticky; top: 0; z-index: 1;
+  background: inherit;
+}
+.enroll-tab {
+  flex: 1; padding: 16px; text-align: center; cursor: pointer;
+  background: none; border: none; color: #64748b;
+  font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;
+  transition: all 0.25s; position: relative;
+}
+.enroll-tab::after {
+  content: ''; position: absolute; bottom: -2px; left: 20%; right: 20%;
+  height: 3px; background: transparent; border-radius: 2px;
+  transition: all 0.25s;
+}
+.enroll-tab.active { color: #f59e0b; }
+.enroll-tab.active::after { background: linear-gradient(90deg, #f59e0b, #f97316); left: 10%; right: 10%; }
+.enroll-tab:hover:not(.active) { color: #cbd5e1; }
+
+/* ===== Body ===== */
+.enroll-body { padding: 20px 24px 24px; }
+
+/* ===== Grid ===== */
+.enroll-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ===== Fields ===== */
+.enroll-field { margin-bottom: 14px; }
+.enroll-field > label { display: block; font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; color: #94a3b8; }
+.enroll-field > label span { color: #f59e0b; }
+.enroll-field input, .enroll-field select, .enroll-field textarea {
+  width: 100%; padding: 10px 14px; font-size: 0.85rem;
+  background: rgba(255,255,255,0.04); border: 1.5px solid rgba(99,102,241,0.25);
+  border-radius: 8px; color: #e2e8f0; outline: none;
+  transition: all 0.2s; font-family: inherit;
+}
+.enroll-field input:focus, .enroll-field select:focus, .enroll-field textarea:focus {
+  border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  background: rgba(255,255,255,0.06);
+}
+.enroll-field input::placeholder, .enroll-field textarea::placeholder { color: #475569; }
+.enroll-field select option { background: #1a1a2e; color: #e2e8f0; }
+
+/* ===== Custom Checkbox (Course List) ===== */
+.enroll-checks { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.enroll-check {
+  display: flex; align-items: center; gap: 12px; cursor: pointer;
+  padding: 10px 14px; border-radius: 10px;
+  background: rgba(255,255,255,0.02); border: 1.5px solid rgba(255,255,255,0.08);
+  transition: all 0.25s; font-size: 0.85rem; user-select: none;
+}
+.enroll-check:hover { background: rgba(99,102,241,0.06); border-color: rgba(99,102,241,0.25); }
+.enroll-check.checked { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.4); }
+
+.custom-checkbox {
+  width: 20px; height: 20px; border-radius: 5px; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.03);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.enroll-check.checked .custom-checkbox,
+.exam-option.selected .custom-checkbox {
+  background: #6366f1; border-color: #6366f1;
+}
+.custom-checkbox svg {
+  width: 12px; height: 12px; fill: none; stroke: #fff;
+  stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+}
+
+.check-icon { font-size: 1.1rem; flex-shrink: 0; }
+.check-label { color: #cbd5e1; font-weight: 500; }
+.enroll-check.checked .check-label { color: #e2e8f0; font-weight: 600; }
+
+/* ===== Exam Options ===== */
+.exam-options { display: flex; flex-direction: column; gap: 8px; }
+.exam-option {
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  transition: all 0.25s; overflow: hidden;
+}
+.exam-option.selected { border-color: #f59e0b; background: rgba(245,158,11,0.04); }
+
+/* Exam Header (checkbox row) */
+.exam-header {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 12px 14px; user-select: none;
+}
+.exam-icon { font-size: 1.1rem; flex-shrink: 0; }
+.exam-label-text { font-size: 0.85rem; font-weight: 600; color: #cbd5e1; }
+.exam-option.selected .exam-label-text { color: #fbbf24; }
+
+/* Exam sub-options (language / version) */
+.exam-option-subs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  padding: 0 14px 12px; border-top: 1px solid rgba(255,255,255,0.06);
+  margin-top: 0; padding-top: 10px;
+  animation: subSlideIn 0.2s ease;
+}
+@keyframes subSlideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+.exam-sub { display: flex; flex-direction: column; gap: 6px; }
+.exam-sub-label { font-size: 0.7rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.exam-sub-radios { display: flex; gap: 6px; }
+.exam-radio {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 99px; cursor: pointer;
+  font-size: 0.76rem; font-weight: 500;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #94a3b8; transition: all 0.2s;
+}
+.exam-radio input { display: none; }
+.exam-radio:hover { border-color: rgba(245,158,11,0.3); color: #cbd5e1; }
+.exam-radio.active {
+  background: rgba(245,158,11,0.15); border-color: #f59e0b;
+  color: #fbbf24; font-weight: 600;
+}
+
+/* ===== Submit Button ===== */
+.enroll-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 14px; margin-top: 8px;
+  background: linear-gradient(135deg, #f59e0b, #f97316); border: none;
+  border-radius: 10px; color: #fff; font-size: 0.95rem; font-weight: 800;
+  letter-spacing: 1px; cursor: pointer; transition: all 0.2s;
+  text-transform: uppercase;
+}
+.enroll-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245,158,11,0.35); }
+.enroll-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Success ===== */
+.enroll-success {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 48px 32px; text-align: center;
+}
+.enroll-success svg { color: #10b981; margin-bottom: 16px; }
+.enroll-success h3 { font-size: 1.4rem; margin: 0 0 8px; color: #e2e8f0; }
+.enroll-success p { font-size: 0.9rem; color: #94a3b8; margin: 0 0 24px; }
+.enroll-success .enroll-btn { max-width: 200px; }
+
+/* ===== Responsive ===== */
+@media (max-width: 600px) {
+  .enroll-grid-2 { grid-template-columns: 1fr; }
+  .enroll-popup { max-width: 100%; border-radius: 12px; }
+  .enroll-body { padding: 16px; }
+  .exam-option-subs { grid-template-columns: 1fr; }
+}

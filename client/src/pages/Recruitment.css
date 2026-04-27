@@ -1,0 +1,154 @@
+.recruit-page { min-height: 100vh; }
+
+/* Hero */
+.recruit-hero {
+  padding: 60px 0 48px;
+  background: linear-gradient(135deg, #0f0c29, #1a1640, #302b63);
+  text-align: center; color: #fff; position: relative; overflow: hidden;
+}
+.recruit-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(99,102,241,0.12), transparent 70%);
+}
+.recruit-hero-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 16px; border-radius: 99px;
+  background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3);
+  color: #a5b4fc; font-size: 0.78rem; font-weight: 600; margin-bottom: 16px;
+}
+.recruit-hero h1 { font-size: 2.4rem; margin: 0 0 12px; position: relative; }
+.recruit-hero p { font-size: 1rem; color: #94a3b8; max-width: 550px; margin: 0 auto; line-height: 1.6; position: relative; }
+
+/* Benefits */
+.recruit-benefits { padding: 48px 0; }
+.recruit-benefits-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.benefit-card {
+  padding: 24px; border-radius: 12px; text-align: center;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  transition: all 0.3s;
+}
+.benefit-card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.3); }
+.benefit-icon { font-size: 2rem; display: block; margin-bottom: 12px; }
+.benefit-card h3 { font-size: 1rem; margin: 0 0 6px; color: #e2e8f0; }
+.benefit-card p { font-size: 0.82rem; color: #94a3b8; margin: 0; line-height: 1.5; }
+
+/* Form Section */
+.recruit-form-section { padding: 48px 0 80px; }
+.recruit-form { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.recruit-card {
+  padding: 20px 24px; border-radius: 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+}
+.recruit-card-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.95rem; margin: 0 0 16px; padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); color: #e2e8f0;
+}
+.recruit-card-title .req { color: #ef4444; }
+
+.recruit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.full-width { grid-column: 1 / -1; }
+
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 0.8rem; font-weight: 600; color: #cbd5e1; display: flex; align-items: center; gap: 4px; }
+.req { color: #ef4444; }
+.form-input {
+  width: 100%; padding: 10px 14px; font-size: 0.85rem;
+  border: 1.5px solid rgba(99,102,241,0.25); border-radius: 8px;
+  background: rgba(255,255,255,0.04); color: #e2e8f0;
+  outline: none; transition: all 0.2s; font-family: inherit;
+}
+.form-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); background: rgba(255,255,255,0.06); }
+.form-input::placeholder { color: #64748b; }
+.form-input option { background: #1a1a2e; color: #e2e8f0; }
+
+/* Chips */
+.recruit-chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.recruit-chip {
+  padding: 8px 16px; border-radius: 99px; cursor: pointer;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04); color: #cbd5e1;
+  font-size: 0.82rem; font-weight: 500; transition: all 0.2s;
+}
+.recruit-chip:hover { border-color: #6366f1; color: #e2e8f0; }
+.recruit-chip.active {
+  background: #6366f1; color: #fff;
+  border-color: #6366f1; font-weight: 600;
+}
+
+/* Schedule */
+.recruit-schedule-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.schedule-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 14px 10px; border-radius: 10px; cursor: pointer;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04); color: #cbd5e1;
+  font-size: 0.78rem; font-weight: 500; transition: all 0.2s;
+}
+.schedule-chip:hover { border-color: #6366f1; color: #e2e8f0; }
+.schedule-chip.active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff; border-color: transparent;
+  box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+}
+.schedule-icon { font-size: 1.3rem; }
+
+/* Submit */
+.recruit-submit {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 16px; margin-top: 8px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none;
+  border-radius: 12px; color: #fff; font-size: 1.05rem; font-weight: 800;
+  letter-spacing: 1px; cursor: pointer; transition: all 0.2s;
+  text-transform: uppercase;
+}
+.recruit-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,0.35); }
+.recruit-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* Success Card */
+.recruit-success-card {
+  text-align: center; padding: 48px 40px; border-radius: 20px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(99,102,241,0.2);
+  max-width: 480px; width: 100%;
+  animation: successFadeIn 0.5s ease-out;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.recruit-success-card h2 { font-size: 1.6rem; margin: 20px 0 12px; color: #e2e8f0; }
+.recruit-success-card p { font-size: 0.95rem; color: #94a3b8; line-height: 1.7; margin: 0 0 8px; }
+
+.success-icon-ring {
+  width: 88px; height: 88px; border-radius: 50%; margin: 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05));
+  border: 2px solid rgba(16,185,129,0.3);
+  animation: successPulse 2s ease-in-out infinite;
+}
+.success-icon-ring svg { color: #10b981; }
+
+.success-actions {
+  display: flex; gap: 12px; justify-content: center; margin-top: 28px; flex-wrap: wrap;
+}
+.btn-outline {
+  background: transparent; border: 1.5px solid rgba(99,102,241,0.4);
+  color: #a5b4fc; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-outline:hover { border-color: #6366f1; color: #fff; background: rgba(99,102,241,0.1); }
+
+@keyframes successFadeIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes successPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.2); }
+  50% { box-shadow: 0 0 0 12px rgba(16,185,129,0); }
+}
+
+@media (max-width: 768px) {
+  .recruit-benefits-grid { grid-template-columns: 1fr 1fr; }
+  .recruit-grid { grid-template-columns: 1fr; }
+  .recruit-schedule-grid { grid-template-columns: 1fr 1fr; }
+  .recruit-hero h1 { font-size: 1.8rem; }
+}
+@media (max-width: 480px) {
+  .recruit-benefits-grid { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,280 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int          @id @default(autoincrement())
+  email       String       @unique
+  password    String
+  fullName    String
+  phone       String?
+  avatar      String?
+  role        String       @default("user")
+  isActive    Boolean      @default(true)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  enrollments          Enrollment[]
+  orders               Order[]
+  posts                Post[]
+  reviews              Review[]
+  comments             Comment[]
+  submissions          Submission[]
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  type        String
+  description String?
+  createdAt   DateTime @default(now())
+  courses     Course[]
+  posts       Post[]
+}
+
+model Course {
+  id            Int          @id @default(autoincrement())
+  title         String
+  slug          String       @unique
+  description   String
+  content       String?
+  requirements  String?   // JSON array: ["Có máy tính", "Biết dùng Word cơ bản"]
+  thumbnail     String?
+  price         Float        @default(0)
+  originalPrice Float?
+  level         String       @default("beginner")
+  duration      String?
+  totalLessons  Int          @default(0)
+  isPublished   Boolean      @default(false)
+  isFeatured    Boolean      @default(false)
+  hasDocuments      Boolean  @default(true)
+  hasLifetimeAccess Boolean  @default(true)
+  hasCertificate    Boolean  @default(true)
+  categoryId    Int
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  category      Category     @relation(fields: [categoryId], references: [id])
+  enrollments   Enrollment[]
+  lessons       Lesson[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+  comments      Comment[]
+}
+
+model Lesson {
+  id        Int        @id @default(autoincrement())
+  title     String
+  content   String?
+  videoUrl  String?
+  duration  Int?
+  order     Int        @default(0)
+  isPreview Boolean    @default(false)
+  courseId  Int
+  createdAt DateTime   @default(now())
+  course    Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress  Progress[]
+  comments  Comment[]
+  materials Material[]
+  submissions Submission[]
+}
+
+model Material {
+  id        Int      @id @default(autoincrement())
+  lessonId  Int
+  title     String
+  fileUrl   String
+  fileType  String?  // pdf, docx, pptx, zip...
+  fileSize  Int?     // bytes
+  createdAt DateTime @default(now())
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Submission {
+  id        Int      @id @default(autoincrement())
+  lessonId  Int
+  userId    Int
+  fileUrl   String
+  fileName  String
+  note      String?
+  grade     String?  // 'pending', 'graded'
+  feedback  String?  // Admin feedback
+  score     Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Post {
+  id              Int      @id @default(autoincrement())
+  title           String
+  slug            String   @unique
+  excerpt         String?
+  content         String
+  thumbnail       String?
+  isPublished     Boolean  @default(false)
+  isFeatured      Boolean  @default(false)
+  views           Int      @default(0)
+  // SEO Fields
+  metaTitle       String?
+  metaDescription String?
+  focusKeyword    String?
+  tags            String?  // JSON array: ["tag1","tag2"]
+  tableOfContents String?  // JSON array: [{id,text,level}]
+  categoryId      Int
+  authorId        Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  author          User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model Enrollment {
+  id          Int        @id @default(autoincrement())
+  userId      Int
+  courseId    Int
+  status      String     @default("active")
+  enrolledAt  DateTime   @default(now())
+  completedAt DateTime?
+  course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progress    Progress[]
+
+  @@unique([userId, courseId])
+}
+
+model Progress {
+  id           Int        @id @default(autoincrement())
+  enrollmentId Int
+  lessonId     Int
+  completed    Boolean    @default(false)
+  completedAt  DateTime?
+  lesson       Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, lessonId])
+}
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  orderCode     String      @unique
+  userId        Int
+  totalAmount   Float
+  status        String      @default("pending")
+  paymentMethod String?
+  paymentRef    String?
+  paidAt        DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderItems    OrderItem[]
+}
+
+model OrderItem {
+  id       Int    @id @default(autoincrement())
+  orderId  Int
+  courseId Int
+  price    Float
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  courseId  Int
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model SystemSetting {
+  id    Int     @id @default(autoincrement())
+  key   String  @unique
+  value String?
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  type      String   // REGISTER, PAYMENT, COMMENT, SYSTEM
+  message   String
+  data      String?  // JSON string format
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  courseId  Int?
+  lessonId  Int?
+  parentId  Int?
+  content   String
+  image     String?
+  reactions String?  // JSON string: { "like": [1,2], "heart": [3] }
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson    Lesson?  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+}
+
+model ContactMessage {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  phone     String
+  email     String?
+  subject   String?
+  content   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Registration {
+  id          Int      @id @default(autoincrement())
+  type        String   // "course" or "exam"
+  fullName    String
+  phone       String
+  courses     String?
+  level       String?
+  schedule    String?
+  note        String?
+  birthDate   String?
+  idNumber    String?
+  examType    String?
+  status      String   @default("pending")
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model TeacherApplication {
+  id          Int      @id @default(autoincrement())
+  fullName    String
+  phone       String
+  email       String
+  age         Int?
+  hometown    String?
+  degree      String   // Bằng cấp
+  experience  String   // Kinh nghiệm
+  teachMode   String   // online/offline/both
+  expertise   String   // JSON array: ["tin-hoc-van-phong","ai","photoshop",...]
+  schedule    String   // JSON array: ["sang","trua","chieu","toi"]
+  note        String?
+  status      String   @default("pending") // pending, reviewing, accepted, rejected
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
