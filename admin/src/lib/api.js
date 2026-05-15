@@ -2,10 +2,13 @@ import axios from 'axios';
 import useAuthStore from '../store/authStore';
 
 function resolveApiBase() {
-  const env = import.meta.env.VITE_API_URL;
-  if (env && !/127\.0\.0\.1|localhost/i.test(env)) return env.replace(/\/+$/, '');
-  if (import.meta.env.PROD) return '/api';
-  return env || 'http://localhost:5000/api';
+  const env = (import.meta.env.VITE_API_URL || '').trim();
+  if (import.meta.env.DEV) return env || 'http://localhost:5000/api';
+  if (env === '/api' || /\/api$/i.test(env)) return env.replace(/\/+$/, '');
+  if (env && !/^(https?:\/\/)?(127\.0\.0\.1|localhost)/i.test(env)) {
+    return env.replace(/\/+$/, '');
+  }
+  return '/api';
 }
 
 const API_BASE = resolveApiBase();

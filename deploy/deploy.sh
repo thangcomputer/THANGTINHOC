@@ -71,15 +71,13 @@ fi
 cd ..
 
 echo "==> Build client..."
-echo "VITE_API_URL=/api" > client/.env
-cd client
+# client/.env.production sets VITE_API_URL=/api`ncd client
 npm ci 2>/dev/null || npm install
 npm run build
 cd ..
 
 echo "==> Build admin..."
-echo "VITE_API_URL=/api" > admin/.env
-cd admin
+# admin/.env.production sets VITE_API_URL=/api`ncd admin
 npm ci 2>/dev/null || npm install
 npm run build
 cd ..
