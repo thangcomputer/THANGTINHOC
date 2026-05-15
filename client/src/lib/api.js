@@ -1,7 +1,14 @@
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+function resolveApiBase() {
+  const env = import.meta.env.VITE_API_URL;
+  if (env && !/127\.0\.0\.1|localhost/i.test(env)) return env.replace(/\/+$/, '');
+  if (import.meta.env.PROD) return '/api';
+  return env || 'http://localhost:5000/api';
+}
+
+const API_BASE = resolveApiBase();
 
 const api = axios.create({
   baseURL: API_BASE,
