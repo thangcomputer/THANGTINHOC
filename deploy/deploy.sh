@@ -8,9 +8,11 @@ cd "$ROOT"
 
 CONF="$ROOT/deploy/deploy.conf"
 if [ ! -f "$CONF" ]; then
-  echo "Thieu deploy/deploy.conf — chay: cp deploy/deploy.conf.example deploy/deploy.conf"
+  echo "Thieu deploy/deploy.conf â€” chay: cp deploy/deploy.conf.example deploy/deploy.conf"
   exit 1
 fi
+# Bo UTF-8 BOM
+if [ -f "$CONF" ]; then sed -i '1s/^\xEF\xBB\xBF//' "$CONF" 2>/dev/null || true; fi
 # shellcheck source=/dev/null
 source "$CONF"
 
