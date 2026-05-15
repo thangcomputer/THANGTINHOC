@@ -1,11 +1,9 @@
-﻿# Sao chep thanh deploy.conf roi chinh domain:
-# cp deploy/deploy.conf.example deploy/deploy.conf
-
-DOMAIN=thangtinhoc.vn
+﻿DOMAIN=thangtinhoc.vn
 ADMIN_DOMAIN=admin.thangtinhoc.vn
-APP_DIR=/var/www/thangtinhoc
+APP_DIR=/www/wwwroot/thangtinhoc
+PORT=5001
 JWT_SECRET=
-RUN_SEED=false
+RUN_SEED=true
 RESEND_API_KEY=
 EMAIL_FROM=noreply@thangtinhoc.vn
 GOOGLE_CLIENT_ID=

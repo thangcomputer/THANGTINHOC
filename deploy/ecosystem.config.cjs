@@ -1,5 +1,4 @@
-﻿/** PM2 - chay tu thu muc goc repo: pm2 start deploy/ecosystem.config.cjs */
-const path = require("path");
+﻿const path = require("path");
 
 module.exports = {
   apps: [
@@ -10,7 +9,7 @@ module.exports = {
       instances: 1,
       autorestart: true,
       max_memory_restart: "500M",
-      env: { NODE_ENV: "production", PORT: 5000 },
+      env_file: path.join(__dirname, "..", "server", ".env"),
     },
   ],
 };
