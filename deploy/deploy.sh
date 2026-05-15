@@ -8,7 +8,7 @@ cd "$ROOT"
 
 CONF="$ROOT/deploy/deploy.conf"
 if [ ! -f "$CONF" ]; then
-  echo "Thieu deploy/deploy.conf â€” chay: cp deploy/deploy.conf.example deploy/deploy.conf"
+  echo "Thieu deploy/deploy.conf ├óΓé¼ΓÇ¥ chay: cp deploy/deploy.conf.example deploy/deploy.conf"
   exit 1
 fi
 # Bo UTF-8 BOM
@@ -71,13 +71,13 @@ fi
 cd ..
 
 echo "==> Build client..."
-# client/.env.production sets VITE_API_URL=/api`ncd client
+cd client
 npm ci 2>/dev/null || npm install
 npm run build
 cd ..
 
 echo "==> Build admin..."
-# admin/.env.production sets VITE_API_URL=/api`ncd admin
+cd admin
 npm ci 2>/dev/null || npm install
 npm run build
 cd ..
