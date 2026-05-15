@@ -10,7 +10,9 @@
     "db:generate": "npx prisma generate",
     "db:seed": "node prisma/seed.js",
     "db:studio": "npx prisma studio",
-    "setup": "npm run db:migrate && npm run db:generate && npm run db:seed"
+    "setup": "npm run db:migrate && npm run db:generate && npm run db:seed",
+    "db:deploy": "prisma generate && prisma migrate deploy",
+    "start:prod": "NODE_ENV=production node index.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
