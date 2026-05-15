@@ -79,9 +79,8 @@ const sanitizeMiddleware = (req, res, next) => {
 // 3. HTTPS REDIRECT — Bắt buộc HTTPS khi deploy production
 // ============================================================
 const httpsRedirect = (req, res, next) => {
-  if (process.env.NODE_ENV === 'production' && !req.secure && req.get('x-forwarded-proto') !== 'https') {
-    return res.redirect(301, `https://${req.headers.host}${req.url}`);
-  }
+  // Bỏ qua HTTPS redirect vì aaPanel đã tự động force HTTPS, 
+  // và aaPanel reverse proxy không pass đúng header khiến host bị nhận nhầm thành 127.0.0.1
   next();
 };
 
