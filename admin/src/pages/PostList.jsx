@@ -20,7 +20,7 @@ export default function PostList() {
   useEffect(() => { fetchPosts(); }, []);
 
   const handleDelete = async (id) => {
-  // Directly delete post without confirmation dialog
+  if (!window.confirm('Xóa bài viết này?')) return;
   try {
     await api.delete(`/posts/${id}`);
     toast.success('Xóa thành công');

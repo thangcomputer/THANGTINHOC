@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, BookOpen, Mail, Lock, User, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
@@ -30,8 +30,9 @@ export default function Register() {
     if (form.password !== form.confirmPassword) {
       return toast.error('Mật khẩu xác nhận không khớp');
     }
-    if (form.password.length < 6) {
-      return toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+    if (form.password.length < 8) {
+      toast.error('Mật khẩu phải có ít nhất 8 ký tự');
+      return;
     }
     setLoading(true);
     try {
@@ -103,7 +104,7 @@ export default function Register() {
             <label>Mật Khẩu</label>
             <div className="input-icon-wrap">
               <Lock size={16} className="input-icon" />
-              <input type={showPass ? 'text' : 'password'} required className="form-control" placeholder="Ít nhất 6 ký tự" value={form.password} onChange={e => setForm({...form, password: e.target.value})} style={{paddingLeft:'2.5rem', paddingRight:'3rem'}} />
+              <input type={showPass ? 'text' : 'password'} required className="form-control" placeholder="Ít nhất 8 ký tự" value={form.password} onChange={e => setForm({...form, password: e.target.value})} style={{paddingLeft:'2.5rem', paddingRight:'3rem'}} />
               <button type="button" className="input-eye" onClick={() => setShowPass(!showPass)}>{showPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
             </div>
           </div>

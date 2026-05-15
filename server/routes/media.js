@@ -27,6 +27,18 @@ function saveMeta(meta) {
   }
 }
 
+function safeFilename(raw) {
+  const filename = path.basename(decodeURIComponent(raw || ''));
+  if (!filename || filename.includes('..')) return null;
+  return filename;
+}
+
+function resolveUploadPath(filename) {
+  const filePath = path.resolve(uploadDir, filename);
+  if (!filePath.startsWith(path.resolve(uploadDir))) return null;
+  return filePath;
+}
+
 // Helper to build URL for a file
 function fileUrl(req, filename) {
   return `${req.protocol}://${req.get('host')}/uploads/${filename}`;
@@ -55,10 +67,11 @@ router.get('/', authenticate, authorize('admin'), async (req, res) => {
 
 // PUT /api/media/:filename – update alt & title metadata (admin only)
 router.put('/:filename', authenticate, authorize('admin'), async (req, res) => {
-  const filename = decodeURIComponent(req.params.filename);
+  const filename = safeFilename(req.params.filename);
+  if (!filename) return res.status(400).json({ success: false, message: 'Ten file khong hop le' });
   const { alt = '', title = '' } = req.body;
-  const filePath = path.join(uploadDir, filename);
-  if (!fs.existsSync(filePath)) {
+  const filePath = resolveUploadPath(filename);
+  if (!filePath || !fs.existsSync(filePath)) {
     return res.status(404).json({ success: false, message: 'Không tìm thấy ảnh' });
   }
   const meta = loadMeta();
@@ -69,10 +82,11 @@ router.put('/:filename', authenticate, authorize('admin'), async (req, res) => {
 
 // DELETE /api/media/:filename – delete an uploaded image (admin only)
 router.delete('/:filename', authenticate, authorize('admin'), async (req, res) => {
-  const filename = decodeURIComponent(req.params.filename);
-  const filePath = path.join(uploadDir, filename);
+  const filename = safeFilename(req.params.filename);
+  if (!filename) return res.status(400).json({ success: false, message: 'Ten file khong hop le' });
+  const filePath = resolveUploadPath(filename);
   try {
-    if (!fs.existsSync(filePath)) {
+    if (!filePath || !fs.existsSync(filePath)) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy ảnh' });
     }
     await fs.promises.unlink(filePath);

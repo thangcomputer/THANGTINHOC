@@ -64,6 +64,9 @@ router.get('/:slug', async (req, res) => {
       include: { category: true, author: { select: { fullName: true, avatar: true } } },
     });
     if (!post) return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết' });
+    if (!post.isPublished) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết' });
+    }
     // Increment views
     await prisma.post.update({ where: { id: post.id }, data: { views: post.views + 1 } });
     res.json({ success: true, data: post });

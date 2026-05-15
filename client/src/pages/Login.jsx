@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, BookOpen, Mail, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
@@ -14,6 +14,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = location.state?.from?.pathname || '/';
   const [siteLogo, setSiteLogo] = useState(null);
   const [siteName, setSiteName] = useState('Thắng Tin Học');
 
@@ -32,7 +34,7 @@ export default function Login() {
       const res = await api.post('/auth/login', form);
       login(res.data.data.user, res.data.data.token);
       toast.success('Đăng nhập thành công!');
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Đăng nhập thất bại');
     } finally {
@@ -47,7 +49,7 @@ export default function Login() {
       });
       login(res.data.data.user, res.data.data.token);
       toast.success('Đăng nhập với Google thành công!');
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Đăng nhập với Google thất bại');
     }

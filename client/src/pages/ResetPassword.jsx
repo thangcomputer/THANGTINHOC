@@ -30,7 +30,7 @@ export default function ResetPassword() {
     if (password !== confirmPassword) {
       return toast.error('Mật khẩu nhập lại không khớp!');
     }
-    if (password.length < 6) {
+    if (password.length < 8) {
       return toast.error('Mật khẩu phải từ 6 ký tự trở lên');
     }
 
@@ -89,7 +89,7 @@ export default function ResetPassword() {
               type="password" 
               required 
               className="form-control" 
-              placeholder="Nhập tối thiểu 6 ký tự"
+              placeholder="Nhập tối thiểu 8 ký tự"
               value={password}
               onChange={e => setPassword(e.target.value)}
             />

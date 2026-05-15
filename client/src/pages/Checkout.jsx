@@ -10,8 +10,10 @@ function formatPrice(price) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 }
 
+const allowMock = import.meta.env.VITE_ALLOW_MOCK_PAYMENT === 'true' || import.meta.env.DEV;
+
 const paymentMethods = [
-  { id: 'mock', label: 'Thanh Toán Demo', desc: 'Thanh toán tức thì (chế độ demo)', icon: '💳' },
+  ...(allowMock ? [{ id: 'mock', label: 'Thanh Toán Demo', desc: 'Thanh toán tức thì (chế độ demo)', icon: '💳' }] : []),
   { id: 'vnpay', label: 'VNPay', desc: 'ATM / Internet Banking (Sắp ra mắt)', icon: '🏦', disabled: true },
   { id: 'momo', label: 'Ví MoMo', desc: 'Thanh toán qua ví MoMo (Sắp ra mắt)', icon: '📱', disabled: true },
 ];
@@ -21,7 +23,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [courses] = useState(location.state?.courses || []);
-  const [method, setMethod] = useState('mock');
+  const [method, setMethod] = useState(allowMock ? 'mock' : 'vnpay');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -30,15 +32,20 @@ export default function Checkout() {
   }, []);
 
   const total = courses.reduce((s, c) => s + c.price, 0);
+  const canCheckout = allowMock && method === 'mock';
 
   const handleCheckout = async () => {
+    if (!canCheckout) {
+      toast.error('Cổng thanh toán đang được tích hợp. Vui lòng liên hệ trung tâm.');
+      return;
+    }
     setLoading(true);
     try {
-      await api.post('/orders', {
+      const res = await api.post('/orders', {
         courseIds: courses.map(c => c.id),
         paymentMethod: method,
       });
-      navigate('/payment/success', { state: { courses } });
+      navigate('/payment/success', { state: { courses, order: res.data.data } });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
     } finally {
@@ -118,7 +125,7 @@ export default function Checkout() {
                 className="btn btn-primary btn-lg"
                 style={{ width: '100%', marginTop: '1rem' }}
                 onClick={handleCheckout}
-                disabled={loading}
+                disabled={loading || !canCheckout}
               >
                 {loading ? 'Đang xử lý...' : `Thanh Toán ${formatPrice(total)}`}
               </button>

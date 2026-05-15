@@ -89,7 +89,7 @@ export default function CoursePlayer() {
     const formData = new FormData();
     formData.append('image', file);
     try {
-      const res = await api.post('/upload', formData);
+      const res = await api.post('/upload/user-image', formData);
       setCommentImage(res.data.data.url);
       toast.success('Đã tải ảnh lên');
     } catch(err) { toast.error('Tải ảnh thất bại'); }
@@ -197,34 +197,54 @@ export default function CoursePlayer() {
   useEffect(() => {
     if (!isAuthenticated) { navigate('/login'); return; }
     
-    api.get(`/courses/${slug}`).then(res => {
-      const courseData = res.data.data;
-      setCourse(courseData);
-      
-      api.get(`/courses/${courseData.id}/enrollment`).then(enrollRes => {
-        if (!enrollRes.data.data.enrolled) {
-          toast.error('Bạn chưa đăng ký khóa học này');
-          navigate(`/courses/${slug}`);
-          return;
+    api.get(`/courses/${slug}/learn`)
+      .then(res => {
+        const courseData = res.data.data;
+        setCourse(courseData);
+
+        api.get(`/courses/${courseData.id}/enrollment`).then(enrollRes => {
+          if (!enrollRes.data.data.enrolled) {
+            toast.error('Bạn chưa đăng ký khóa học này');
+            navigate(`/courses/${slug}`);
+            return;
+          }
+          setProgress(enrollRes.data.data.enrollment.progress || []);
+        }).catch(() => {
+          toast.error('Không tải được tiến độ học tập');
+        });
+
+        if (lessonId) {
+          const found = courseData.lessons.find(l => l.id === parseInt(lessonId, 10));
+          if (!found) {
+            toast.error('Bài học không tồn tại');
+            if (courseData.lessons.length > 0) {
+              navigate(`/learn/${slug}/${courseData.lessons[0].id}`, { replace: true });
+            }
+          } else {
+            setActiveLesson(found);
+          }
+        } else if (courseData.lessons.length > 0) {
+          setActiveLesson(courseData.lessons[0]);
         }
-        setProgress(enrollRes.data.data.enrollment.progress || []);
-      });
 
-      if (lessonId) {
-        const found = courseData.lessons.find(l => l.id === parseInt(lessonId));
-        setActiveLesson(found);
-      } else if (courseData.lessons.length > 0) {
-        setActiveLesson(courseData.lessons[0]);
-      }
-
-      // Load existing review
-      const userReview = courseData.reviews?.find(r => r.user?.id === user?.id || r.userId === user?.id);
-      if (userReview) {
-        setExistingReview(userReview);
-        setReviewRating(userReview.rating);
-        setReviewComment(userReview.comment || '');
-      }
-    }).finally(() => setLoading(false));
+        const userReview = courseData.reviews?.find(r => r.user?.id === user?.id || r.userId === user?.id);
+        if (userReview) {
+          setExistingReview(userReview);
+          setReviewRating(userReview.rating);
+          setReviewComment(userReview.comment || '');
+        }
+      })
+      .catch((err) => {
+        const msg = err.response?.data?.message;
+        if (err.response?.status === 403) {
+          toast.error(msg || 'Bạn chưa đăng ký khóa học này');
+          navigate(`/courses/${slug}`);
+        } else {
+          toast.error(msg || 'Không tải được khóa học');
+          navigate('/courses');
+        }
+      })
+      .finally(() => setLoading(false));
   }, [slug, lessonId]);
 
   // Load notes from localStorage
@@ -341,8 +361,8 @@ export default function CoursePlayer() {
       toast.success(existingReview ? 'Đã cập nhật đánh giá!' : 'Cảm ơn bạn đã đánh giá!');
       setExistingReview({ rating: reviewRating, comment: reviewComment });
       // Re-fetch course to sync reviews & avgRating
-      const refreshed = await api.get(`/courses/${slug}`);
-      setCourse(refreshed.data.data);
+      const refreshRes = await api.get(`/courses/${slug}/learn`);
+      setCourse(refreshRes.data.data);
     } catch { toast.error('Lỗi khi gửi đánh giá'); }
     finally { setReviewSubmitting(false); }
   };
@@ -831,8 +851,20 @@ export default function CoursePlayer() {
                   ) : (
                     <div className="mat-list">
                       {materials.map(m => (
-                        <a key={m.id} href={`${import.meta.env.VITE_API_URL?.replace('/api','')}${m.fileUrl}`}
-                          target="_blank" rel="noreferrer" className="mat-item" download>
+                        <button key={m.id} type="button" className="mat-item"
+                          onClick={async () => {
+                            try {
+                              const res = await api.get(`/materials/${m.id}/download`, { responseType: 'blob' });
+                              const url = window.URL.createObjectURL(res.data);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = m.title || 'tai-lieu';
+                              a.click();
+                              window.URL.revokeObjectURL(url);
+                            } catch {
+                              toast.error('Không tải được tài liệu');
+                            }
+                          }}>
                           <div className="mat-icon">
                             <File size={20} />
                             <span className="mat-ext">{m.fileType?.toUpperCase()}</span>
@@ -844,7 +876,7 @@ export default function CoursePlayer() {
                             </span>
                           </div>
                           <Download size={18} className="mat-dl-icon" />
-                        </a>
+                        </button>
                       ))}
                     </div>
                   )}

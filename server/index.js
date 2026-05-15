@@ -4,6 +4,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const compression = require('compression');
+const hpp = require('hpp');
 const path = require('path');
 
 const authRoutes = require('./routes/auth');
@@ -72,11 +73,20 @@ if (process.env.NODE_ENV === 'development') {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// 7b. HTTP Parameter Pollution protection
+app.use(hpp());
+
 // 8. Input Sanitization — chống XSS injection
 app.use(sanitizeMiddleware);
 
-// Static files (uploads)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Static files — chặn thư mục nhạy cảm (tài liệu/bài nộp qua API có auth)
+app.use('/uploads', (req, res, next) => {
+  const p = req.path.replace(/\\/g, '/');
+  if (p.startsWith('/materials/') || p.startsWith('/submissions/')) {
+    return res.status(403).json({ success: false, message: 'Truy cập file bị từ chối' });
+  }
+  next();
+}, express.static(path.join(__dirname, 'uploads')));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -84,8 +94,8 @@ app.get('/api/health', (req, res) => {
 });
 
 // Cache purge (Admin only)
-const { authenticate } = require('./middleware/auth');
-app.post('/api/cache/purge', authenticate, async (req, res) => {
+const { authenticate, authorize } = require('./middleware/auth');
+app.post('/api/cache/purge', authenticate, authorize('admin'), async (req, res) => {
   try {
     // Disconnect and reconnect Prisma to clear query engine cache
     const prisma = require('./lib/db');
@@ -156,8 +166,16 @@ app.use((err, req, res, next) => {
   });
 });
 
+if (!process.env.JWT_SECRET) {
+  console.error('❌ JWT_SECRET is required. Set it in server/.env');
+  process.exit(1);
+}
+if (process.env.NODE_ENV === 'production' && !process.env.GOOGLE_CLIENT_ID) {
+  console.warn('⚠️  GOOGLE_CLIENT_ID not set — Google login disabled in production');
+}
+
 app.listen(PORT, () => {
   console.log(`\n🚀 Thắng Tin Học Server running on port ${PORT}`);
   console.log(`📖 API: http://localhost:${PORT}/api`);
-  console.log(`✅ Environment: ${process.env.NODE_ENV}\n`);
+  console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}\n`);
 });

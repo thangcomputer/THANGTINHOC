@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Terminal, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -10,6 +10,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'admin') navigate('/', { replace: true });
+  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

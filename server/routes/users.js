@@ -2,6 +2,9 @@ const express = require('express');
 const prisma = require('../lib/db');
 const bcrypt = require('bcryptjs');
 const { authenticate, authorize } = require('../middleware/auth');
+const { validatePassword } = require('../lib/validate');
+
+const ALLOWED_ROLES = ['user', 'admin'];
 
 const router = express.Router();
 
@@ -31,8 +34,10 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
     if (!fullName || !email || !password) {
       return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Mật khẩu tối thiểu 6 ký tự' });
+    const pwdError = validatePassword(password);
+    if (pwdError) return res.status(400).json({ success: false, message: pwdError });
+    if (!ALLOWED_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, message: 'Vai tro khong hop le' });
     }
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -54,6 +59,7 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
 router.put('/:id/status', authenticate, authorize('admin'), async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: parseInt(req.params.id) } });
+    if (!user) return res.status(404).json({ success: false, message: 'Khong tim thay nguoi dung' });
     const updated = await prisma.user.update({
       where: { id: parseInt(req.params.id) },
       data: { isActive: !user.isActive },
@@ -68,6 +74,9 @@ router.put('/:id/status', authenticate, authorize('admin'), async (req, res) => 
 router.put('/:id/role', authenticate, authorize('admin'), async (req, res) => {
   try {
     const { role } = req.body;
+    if (!ALLOWED_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, message: 'Vai tro khong hop le' });
+    }
     const user = await prisma.user.update({
       where: { id: parseInt(req.params.id) },
       data: { role },

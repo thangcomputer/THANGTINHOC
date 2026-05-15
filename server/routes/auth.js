@@ -3,6 +3,7 @@ const prisma = require('../lib/db');
 const bcrypt = require('bcryptjs');
 const { generateToken, authenticate } = require('../middleware/auth');
 const { sendWelcomeEmail, sendAdminNewUserNotify } = require('../lib/mailer');
+const { validatePassword, isProduction } = require('../lib/validate');
 
 const router = express.Router();
 
@@ -14,6 +15,8 @@ router.post('/register', async (req, res) => {
     if (!email || !password || !fullName) {
       return res.status(400).json({ success: false, message: 'Vui lòng điền đầy đủ thông tin' });
     }
+    const pwdError = validatePassword(password);
+    if (pwdError) return res.status(400).json({ success: false, message: pwdError });
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return res.status(400).json({ success: false, message: 'Email đã được sử dụng' });
@@ -56,8 +59,11 @@ router.post('/login', async (req, res) => {
   try {
     const password = req.body.password;
     const email = req.body.email?.toLowerCase();
+    if (!password) {
+      return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' });
+    }
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !await bcrypt.compare(password, user.password)) {
+    if (!user || !user.password || !await bcrypt.compare(password, user.password)) {
       return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' });
     }
     if (!user.isActive) {
@@ -113,6 +119,8 @@ router.put('/change-password', authenticate, async (req, res) => {
     if (!await bcrypt.compare(currentPassword, user.password)) {
       return res.status(400).json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
     }
+    const pwdError = validatePassword(newPassword);
+    if (pwdError) return res.status(400).json({ success: false, message: pwdError });
     const hashed = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({ where: { id: req.user.id }, data: { password: hashed } });
     res.json({ success: true, message: 'Đổi mật khẩu thành công' });
@@ -127,31 +135,29 @@ const { sendPasswordResetEmail } = require('../lib/mailer');
 
 // ... Google Auth Client setup (mock or real) ...
 // The user needs to set GOOGLE_CLIENT_ID in .env
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'mock_client_id');
-
 // Google OAuth Login
 router.post('/google', async (req, res) => {
   try {
     const { credential } = req.body;
     if (!credential) return res.status(400).json({ success: false, message: 'Missing credential' });
 
-    let payload;
-    // Attempt verification, if missing client ID, decode it manually for the mock flow 
-    if (process.env.GOOGLE_CLIENT_ID) {
-      const ticket = await googleClient.verifyIdToken({
-        idToken: credential,
-        audience: process.env.GOOGLE_CLIENT_ID,
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      if (isProduction()) {
+        return res.status(503).json({ success: false, message: 'Đăng nhập Google chưa được cấu hình' });
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Cần cấu hình GOOGLE_CLIENT_ID trong môi trường development',
       });
-      payload = ticket.getPayload();
-    } else {
-      // MOCK FLOW: parse the JWT without verifying signature (since we lack client ID)
-      const base64Url = credential.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      payload = JSON.parse(jsonPayload);
     }
+
+    const googleClient = new OAuth2Client(clientId);
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: clientId,
+    });
+    const payload = ticket.getPayload();
 
     const email = payload.email.toLowerCase();
     
@@ -256,14 +262,16 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Token không hợp lệ' });
     }
 
+    const pwdError = validatePassword(newPassword);
+    if (pwdError) return res.status(400).json({ success: false, message: pwdError });
     const hashed = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: user.id },
       data: {
         password: hashed,
         resetPasswordToken: null,
-        resetPasswordExpires: null
-      }
+        resetPasswordExpires: null,
+      },
     });
 
     res.json({ success: true, message: 'Đặt lại mật khẩu thành công!' });

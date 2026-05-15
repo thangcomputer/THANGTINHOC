@@ -20,7 +20,7 @@ export default function CourseList() {
   useEffect(() => { fetchCourses(); }, []);
 
   const handleDelete = async (id) => {
-  // Directly delete course without confirmation dialog
+  if (!window.confirm('Xóa khóa học này? Hành động không thể hoàn tác.')) return;
   try {
     await api.delete(`/courses/${id}`);
     toast.success('Xóa thành công');

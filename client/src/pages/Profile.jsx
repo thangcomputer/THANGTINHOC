@@ -48,8 +48,9 @@ export default function Profile() {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       return toast.error('Mật khẩu xác nhận không khớp');
     }
-    if (passwordForm.newPassword.length < 6) {
-      return toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+    if (passwordForm.newPassword.length < 8) {
+      toast.error('Mật khẩu phải có ít nhất 8 ký tự');
+      return;
     }
     setLoading(true);
     try {
@@ -72,7 +73,7 @@ export default function Profile() {
     const formData = new FormData();
     formData.append('image', file);
     try {
-      const res = await api.post('/upload', formData);
+      const res = await api.post('/upload/user-image', formData);
       const avatarUrl = res.data.data.url;
       setForm({ ...form, avatar: avatarUrl });
       // Auto-save avatar to backend & sync with navbar
@@ -175,7 +176,7 @@ export default function Profile() {
                     <div className="form-group">
                       <label><Lock size={14} /> Mật khẩu mới</label>
                       <input 
-                        type="password" required className="form-control" placeholder="Ít nhất 6 ký tự"
+                        type="password" required className="form-control" placeholder="Ít nhất 8 ký tự"
                         value={passwordForm.newPassword} 
                         onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})} 
                       />

@@ -55,6 +55,7 @@ export default function LessonManager() {
   };
 
   const handleDelete = async (lessonId) => {
+    if (!window.confirm('Xóa bài học này?')) return;
     try {
       await api.delete(`/courses/${courseId}/lessons/${lessonId}`);
       toast.success('Đã xóa bài học');

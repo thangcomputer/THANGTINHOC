@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FileText, CheckCircle, Clock, Eye, X, Download, MessageSquare, Star, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { downloadProtectedFile } from '../lib/download';
 import Loading from '../components/Loading';
 
 export default function Submissions() {
@@ -32,7 +33,10 @@ export default function Submissions() {
     try {
       const res = await api.get(`/courses/${selectedCourse}/submissions`);
       setSubmissions(res.data.data || []);
-    } catch { setSubmissions([]); }
+    } catch {
+      setSubmissions([]);
+      toast.error('Không tải được danh sách bài nộp');
+    }
   };
 
   const handleGrade = async () => {
@@ -56,8 +60,6 @@ export default function Submissions() {
     if (filter === 'graded') return s.grade === 'graded';
     return true;
   });
-
-  const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
 
   if (loading) return <Loading fullPage message="Đang tải..." />;
 
@@ -133,10 +135,11 @@ export default function Submissions() {
                     <span style={{ fontSize: '0.82rem' }}>{s.lesson?.title || `Bài ${s.lessonId}`}</span>
                   </td>
                   <td>
-                    <a href={`${API_BASE}${s.fileUrl}`} target="_blank" rel="noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: 600 }}>
+                    <button type="button"
+                      onClick={() => downloadProtectedFile(`/submissions/${s.id}/download`, s.fileName)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                       <Download size={13} /> {s.fileName?.substring(0, 20)}{s.fileName?.length > 20 ? '...' : ''}
-                    </a>
+                    </button>
                   </td>
                   <td>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{s.note || '—'}</span>
@@ -192,10 +195,11 @@ export default function Submissions() {
                   📄 {grading.fileName} • {grading.lesson?.title || `Bài ${grading.lessonId}`}
                 </p>
                 {grading.note && <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>📝 {grading.note}</p>}
-                <a href={`${API_BASE}${grading.fileUrl}`} target="_blank" rel="noreferrer"
-                  className="btn btn-secondary btn-sm" style={{ marginTop: '8px' }}>
+                <button type="button"
+                  className="btn btn-secondary btn-sm" style={{ marginTop: '8px' }}
+                  onClick={() => downloadProtectedFile(`/submissions/${grading.id}/download`, grading.fileName)}>
                   <Download size={13} /> Tải xuống bài nộp
-                </a>
+                </button>
               </div>
 
               <div className="form-group">

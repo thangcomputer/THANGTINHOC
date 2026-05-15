@@ -1,11 +1,26 @@
 const express = require('express');
 const prisma = require('../lib/db');
 const { authenticate, authorize } = require('../middleware/auth');
+const { isUserEnrolled } = require('../lib/courseAccess');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
 const router = express.Router();
+
+const ALLOWED_SUBMISSION_EXT = /\.(pdf|docx?|pptx?|xlsx?|zip|rar|png|jpe?g)$/i;
+
+async function userCanAccessLessonMaterials(user, lessonId) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: { courseId: true, isPreview: true },
+  });
+  if (!lesson) return false;
+  if (lesson.isPreview) return true;
+  return isUserEnrolled(user.id, lesson.courseId);
+}
 
 // Multer setup for file uploads
 const storage = multer.diskStorage({
@@ -19,20 +34,59 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`);
   },
 });
-const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
+const upload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_SUBMISSION_EXT.test(path.extname(file.originalname))) {
+      cb(null, true);
+    } else {
+      cb(new Error('Loại file không được phép'));
+    }
+  },
+});
 
 // ============================================
 // MATERIALS (Admin manages per lesson)
 // ============================================
 
-// Get materials for a lesson (public for enrolled users)
+// Get materials for a lesson (enrolled or preview lesson)
 router.get('/lessons/:lessonId/materials', authenticate, async (req, res) => {
   try {
+    const lessonId = parseInt(req.params.lessonId);
+    const allowed = await userCanAccessLessonMaterials(req.user, lessonId);
+    if (!allowed) {
+      return res.status(403).json({ success: false, message: 'Bạn chưa có quyền truy cập tài liệu này' });
+    }
     const materials = await prisma.material.findMany({
-      where: { lessonId: parseInt(req.params.lessonId) },
+      where: { lessonId },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ success: true, data: materials });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+// Tải file tài liệu (không public qua /uploads)
+router.get('/materials/:id/download', authenticate, async (req, res) => {
+  try {
+    const material = await prisma.material.findUnique({
+      where: { id: parseInt(req.params.id) },
+      include: { lesson: { select: { id: true } } },
+    });
+    if (!material) return res.status(404).json({ success: false, message: 'Không tìm thấy' });
+
+    const allowed = await userCanAccessLessonMaterials(req.user, material.lesson.id);
+    if (!allowed) {
+      return res.status(403).json({ success: false, message: 'Không có quyền tải file' });
+    }
+
+    const filePath = path.join(__dirname, '..', material.fileUrl);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: 'File không tồn tại' });
+    }
+    res.download(filePath, path.basename(material.fileUrl));
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
@@ -156,10 +210,32 @@ const submissionStorage = multer.diskStorage({
     cb(null, `${req.user.id}-${Date.now()}${ext}`);
   },
 });
-const submissionUpload = multer({ storage: submissionStorage, limits: { fileSize: 50 * 1024 * 1024 } });
+const submissionUpload = multer({
+  storage: submissionStorage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_SUBMISSION_EXT.test(path.extname(file.originalname))) {
+      cb(null, true);
+    } else {
+      cb(new Error('Loại file không được phép'));
+    }
+  },
+});
 
 router.post('/lessons/:lessonId/submissions', authenticate, submissionUpload.single('file'), async (req, res) => {
   try {
+    const lessonId = parseInt(req.params.lessonId);
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: lessonId },
+      select: { courseId: true },
+    });
+    if (!lesson) return res.status(404).json({ success: false, message: 'Không tìm thấy bài học' });
+    if (req.user.role !== 'admin') {
+      const enrolled = await isUserEnrolled(req.user.id, lesson.courseId);
+      if (!enrolled) {
+        return res.status(403).json({ success: false, message: 'Bạn chưa đăng ký khóa học này' });
+      }
+    }
     if (!req.file) return res.status(400).json({ success: false, message: 'Vui lòng chọn file' });
     const submission = await prisma.submission.create({
       data: {
@@ -191,6 +267,26 @@ router.put('/submissions/:id', authenticate, authorize('admin'), async (req, res
       },
     });
     res.json({ success: true, data: submission });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+// Tải bài nộp (chủ sở hữu hoặc admin)
+router.get('/submissions/:id/download', authenticate, async (req, res) => {
+  try {
+    const submission = await prisma.submission.findUnique({
+      where: { id: parseInt(req.params.id) },
+    });
+    if (!submission) return res.status(404).json({ success: false, message: 'Không tìm thấy' });
+    if (req.user.role !== 'admin' && submission.userId !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Không có quyền' });
+    }
+    const filePath = path.join(__dirname, '..', submission.fileUrl);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: 'File không tồn tại' });
+    }
+    res.download(filePath, submission.fileName || path.basename(submission.fileUrl));
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }

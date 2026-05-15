@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const prisma = require('../lib/db');
 
 const generateToken = (userId, role) => {
   return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
@@ -6,7 +7,7 @@ const generateToken = (userId, role) => {
   });
 };
 
-const authenticate = (req, res, next) => {
+const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, message: 'No token provided' });
@@ -14,15 +15,28 @@ const authenticate = (req, res, next) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, role: true, isActive: true, fullName: true },
+    });
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Tai khoan khong ton tai' });
+    }
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: 'Tai khoan da bi khoa' });
+    }
+    req.user = { id: user.id, role: user.role, fullName: user.fullName };
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 };
 
 const authorize = (...roles) => {
   return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
@@ -30,4 +44,25 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = { generateToken, authenticate, authorize };
+const optionalAuthenticate = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next();
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, role: true, isActive: true },
+    });
+    if (user && user.isActive) {
+      req.user = { id: user.id, role: user.role };
+    }
+  } catch {
+    // ignore
+  }
+  next();
+};
+
+module.exports = { generateToken, authenticate, authorize, optionalAuthenticate };

@@ -15,8 +15,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau 15 phút.' },
-  keyGenerator: (req) => req.ip,
-  skip: () => process.env.NODE_ENV === 'development', // Không limit trong dev
+  skip: () => process.env.NODE_ENV === 'development',
 });
 
 /** Auth routes: max 20 login/register / 15 phút per IP */
@@ -24,7 +23,6 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: { success: false, message: 'Quá nhiều lần đăng nhập, vui lòng thử lại sau 15 phút.' },
-  keyGenerator: (req) => req.ip,
   skip: () => process.env.NODE_ENV === 'development',
 });
 
@@ -33,7 +31,6 @@ const formLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: { success: false, message: 'Bạn đã gửi quá nhiều lần, vui lòng thử lại sau.' },
-  keyGenerator: (req) => req.ip,
   skip: () => process.env.NODE_ENV === 'development',
 });
 
@@ -42,7 +39,6 @@ const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50,
   message: { success: false, message: 'Quá nhiều file upload, vui lòng thử lại sau.' },
-  keyGenerator: (req) => req.ip,
   skip: () => process.env.NODE_ENV === 'development',
 });
 

@@ -2,44 +2,67 @@ const express = require('express');
 const prisma = require('../lib/db');
 const { authenticate, authorize } = require('../middleware/auth');
 const { sendOrderSuccessEmail } = require('../lib/mailer');
+const { isMockPaymentAllowed } = require('../lib/validate');
 
 const router = express.Router();
 
-// Create order (mock checkout)
+// Create order
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { courseIds, paymentMethod = 'mock' } = req.body;
+    const { courseIds, paymentMethod: rawMethod = 'pending' } = req.body;
     if (!courseIds || !courseIds.length) {
       return res.status(400).json({ success: false, message: 'Không có khóa học nào' });
     }
 
-    // Verify user still exists in DB
     const reqUser = await prisma.user.findUnique({ where: { id: req.user.id } });
     if (!reqUser) {
       return res.status(401).json({ success: false, message: 'Tài khoản không tồn tại, vui lòng đăng nhập lại' });
     }
 
-    const courses = await prisma.course.findMany({ where: { id: { in: courseIds.map(Number) } } });
-    if (!courses.length) {
-      return res.status(400).json({ success: false, message: 'Không tìm thấy khóa học' });
+    const ids = [...new Set(courseIds.map(Number))].filter((id) => !Number.isNaN(id));
+    if (!ids.length) {
+      return res.status(400).json({ success: false, message: 'Khong co khoa hoc hop le' });
     }
+
+    const courses = await prisma.course.findMany({ where: { id: { in: ids } } });
+    if (courses.length !== ids.length) {
+      return res.status(400).json({ success: false, message: 'Mot hoac nhieu khoa hoc khong ton tai' });
+    }
+    const unpublished = courses.filter((c) => !c.isPublished);
+    if (unpublished.length) {
+      return res.status(400).json({ success: false, message: 'Khoa hoc chua duoc mo ban' });
+    }
+
     const totalAmount = courses.reduce((sum, c) => sum + c.price, 0);
+    let paymentMethod = rawMethod;
+
+    if (paymentMethod === 'mock' && !isMockPaymentAllowed()) {
+      return res.status(403).json({ success: false, message: 'Thanh toán demo không khả dụng trên môi trường production' });
+    }
+
+    // Khóa miễn phí — tự động thanh toán
+    if (totalAmount === 0) {
+      paymentMethod = 'free';
+    }
+
+    const isInstantPaid = paymentMethod === 'mock' || paymentMethod === 'free';
     const orderCode = `TTH${Date.now()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
     const order = await prisma.order.create({
       data: {
-        orderCode, userId: reqUser.id, totalAmount,
-        status: paymentMethod === 'mock' ? 'paid' : 'pending',
+        orderCode,
+        userId: reqUser.id,
+        totalAmount,
+        status: isInstantPaid ? 'paid' : 'pending',
         paymentMethod,
-        paidAt: paymentMethod === 'mock' ? new Date() : null,
+        paidAt: isInstantPaid ? new Date() : null,
         orderItems: { create: courses.map(c => ({ courseId: c.id, price: c.price })) },
       },
       include: { orderItems: { include: { course: true } } },
     });
 
-    // Auto-enroll if mock payment
-    if (paymentMethod === 'mock') {
-      for (const courseId of courseIds.map(Number)) {
+    if (isInstantPaid) {
+      for (const courseId of ids) {
         await prisma.enrollment.upsert({
           where: { userId_courseId: { userId: reqUser.id, courseId } },
           update: {},

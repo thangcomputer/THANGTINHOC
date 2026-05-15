@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../lib/db');
 const { authenticate } = require('../middleware/auth');
+const { isUserEnrolled } = require('../lib/courseAccess');
 const router = express.Router();
 
 // Get comments for a lesson or course (public)
@@ -80,6 +81,25 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const { lessonId, courseId, content, parentId, image } = req.body;
     if (!content && !image) return res.status(400).json({ success: false, message: 'Nội dung bình luận trống' });
+
+    if (req.user.role !== 'admin') {
+      if (lessonId) {
+        const lesson = await prisma.lesson.findUnique({
+          where: { id: parseInt(lessonId) },
+          select: { courseId: true },
+        });
+        if (!lesson) return res.status(404).json({ success: false, message: 'Khong tim thay bai hoc' });
+        const enrolled = await isUserEnrolled(req.user.id, lesson.courseId);
+        if (!enrolled) {
+          return res.status(403).json({ success: false, message: 'Ban phai ghi danh khoa hoc de binh luan' });
+        }
+      } else if (courseId) {
+        const enrolled = await isUserEnrolled(req.user.id, parseInt(courseId));
+        if (!enrolled) {
+          return res.status(403).json({ success: false, message: 'Ban phai ghi danh khoa hoc de binh luan' });
+        }
+      }
+    }
 
     const comment = await prisma.comment.create({
       data: {

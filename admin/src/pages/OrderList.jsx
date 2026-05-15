@@ -14,8 +14,11 @@ export default function OrderList() {
 
   const fetchOrders = () => {
     setLoading(true);
-    api.get(`/orders?status=${status}`).then(res => {
+    api.get(`/orders?status=${status}&limit=500`).then(res => {
       setOrders(res.data.data || []);
+    }).catch(() => {
+      toast.error('Không tải được đơn hàng');
+      setOrders([]);
     }).finally(() => setLoading(false));
   };
 
@@ -30,7 +33,7 @@ export default function OrderList() {
   };
 
   const handleDelete = async (id) => {
-    // Directly delete without confirmation dialog
+    if (!window.confirm('Xóa đơn hàng này? Hành động không thể hoàn tác.')) return;
     try {
       await api.delete(`/orders/${id}`);
       toast.success('Đã xóa đơn hàng');
@@ -43,7 +46,7 @@ export default function OrderList() {
   
 
   const handleGrantAccess = async (id) => {
-    // Directly grant access without confirmation dialog
+    if (!window.confirm('Cấp quyền truy cập khóa học cho đơn hàng này?')) return;
     try {
       await api.post(`/orders/${id}/grant`);
       toast.success('Đã cấp quyền truy cập khóa học');

@@ -91,11 +91,10 @@ export default function CourseDetail() {
     if (isAuthenticated && course) {
       api.get(`/courses/${course.id}/enrollment`).then(res => {
         setEnrolled(res.data.data?.enrolled || false);
-        // If enrollment has progress, get completed lessons
         if (res.data.data?.enrollment?.progress) {
           setProgress(res.data.data.enrollment.progress.filter(p => p.completed).map(p => p.lessonId));
         }
-      });
+      }).catch(() => setEnrolled(false));
     }
   }, [course, isAuthenticated]);
 
@@ -120,10 +119,12 @@ export default function CourseDetail() {
     if (course.price === 0) {
       setEnrolling(true);
       try {
-        await api.post('/orders', { courseIds: [course.id], paymentMethod: 'mock' });
+        await api.post('/orders', { courseIds: [course.id], paymentMethod: 'free' });
         setEnrolled(true);
         toast.success('Đăng ký khóa học thành công!');
-      } catch { toast.error('Có lỗi xảy ra'); } finally { setEnrolling(false); }
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+      } finally { setEnrolling(false); }
     } else {
       navigate('/checkout', { state: { courses: [course] } });
     }

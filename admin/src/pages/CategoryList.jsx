@@ -46,7 +46,7 @@ export default function CategoryList() {
   };
 
   const handleDelete = async (id) => {
-    // Directly delete category without confirmation dialog
+    if (!window.confirm('Xóa danh mục này? Tất cả khóa học và bài viết trong danh mục cũng bị xóa.')) return;
     try {
       await api.delete(`/categories/${id}`);
       toast.success('Đã xóa danh mục');

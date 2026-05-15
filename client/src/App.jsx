@@ -37,7 +37,11 @@ import MyActivity from './pages/MyActivity';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  const location = useLocation();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return children;
 };
 
 // Layout with Navbar + Footer — uses Outlet for child routes
@@ -130,13 +134,15 @@ const router = createBrowserRouter([
       { path: 'checkout', element: <PrivateRoute><Checkout /></PrivateRoute> },
       { path: 'payment/success', element: <PrivateRoute><PaymentSuccess /></PrivateRoute> },
       { path: 'ghi-danh', element: <Navigate to="/?enroll=true" replace /> },
+      { path: '*', element: <NotFound /> },
     ],
   },
+  { path: '*', element: <><Toaster position="top-right" /><NotFound /></> },
 ]);
 
 function App() {
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || 'mock_client_id'}>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
       <RouterProvider router={router} />
     </GoogleOAuthProvider>
   );

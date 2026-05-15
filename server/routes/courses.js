@@ -1,6 +1,11 @@
 const express = require('express');
 const prisma = require('../lib/db');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, optionalAuthenticate } = require('../middleware/auth');
+const {
+  isUserEnrolled,
+  sanitizeLessonsForPublic,
+  canAccessFullCourse,
+} = require('../lib/courseAccess');
 
 const router = express.Router();
 
@@ -242,53 +247,69 @@ router.get('/:courseId/related', async (req, res) => {
   }
 });
 
-// Get course by slug (public)
-router.get('/:slug', async (req, res) => {
+function formatCourseResponse(course, lessons) {
+  const computedTotalLessons = lessons?.length || 0;
+  const totalMinutes = lessons?.reduce((sum, l) => sum + (l.duration || 0), 0) || 0;
+  const computedDuration = totalMinutes >= 60
+    ? `${Math.floor(totalMinutes / 60)} giờ ${totalMinutes % 60 > 0 ? totalMinutes % 60 + ' phút' : ''}`
+    : `${totalMinutes} phút`;
+  const videoLessons = lessons?.filter(l => l.videoUrl)?.length || 0;
+
+  return {
+    ...course,
+    lessons,
+    totalLessons: computedTotalLessons,
+    totalDuration: computedDuration,
+    totalMinutes,
+    videoLessons,
+    avgRating: course.reviews.length ? (course.reviews.reduce((s, r) => s + r.rating, 0) / course.reviews.length).toFixed(1) : 0,
+    totalStudents: course._count.enrollments,
+    reviewCount: course.reviews.length,
+  };
+}
+
+const courseInclude = {
+  category: true,
+  lessons: { orderBy: { order: 'asc' } },
+  reviews: {
+    include: { user: { select: { fullName: true, avatar: true } } },
+    orderBy: { createdAt: 'desc' },
+  },
+  _count: { select: { enrollments: true } },
+};
+
+// Học viên đã ghi danh — trả đầy đủ nội dung bài học
+router.get('/:slug/learn', authenticate, async (req, res) => {
   try {
     const course = await prisma.course.findUnique({
       where: { slug: req.params.slug },
-      include: {
-        category: true,
-        lessons: { orderBy: { order: 'asc' } },
-        reviews: {
-          include: { user: { select: { fullName: true, avatar: true } } },
-          orderBy: { createdAt: 'desc' },
-        },
-        _count: { select: { enrollments: true } },
-      },
+      include: courseInclude,
     });
     if (!course) return res.status(404).json({ success: false, message: 'Không tìm thấy khóa học' });
+    if (!course.isPublished && req.user.role !== 'admin') {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy khóa học' });
+    }
 
-    // Auto-compute totalLessons and totalDuration from actual lessons
-    const computedTotalLessons = course.lessons?.length || 0;
-    const totalMinutes = course.lessons?.reduce((sum, l) => sum + (l.duration || 0), 0) || 0;
-    const computedDuration = totalMinutes >= 60
-      ? `${Math.floor(totalMinutes / 60)} giờ ${totalMinutes % 60 > 0 ? totalMinutes % 60 + ' phút' : ''}`
-      : `${totalMinutes} phút`;
-    const videoLessons = course.lessons?.filter(l => l.videoUrl)?.length || 0;
+    const enrolled = await isUserEnrolled(req.user.id, course.id);
+    if (!canAccessFullCourse(req.user, enrolled)) {
+      return res.status(403).json({ success: false, message: 'Bạn chưa đăng ký khóa học này' });
+    }
 
-    res.json({ success: true, data: {
-      ...course,
-      totalLessons: computedTotalLessons,
-      totalDuration: computedDuration,
-      totalMinutes,
-      videoLessons,
-      avgRating: course.reviews.length ? (course.reviews.reduce((s, r) => s + r.rating, 0) / course.reviews.length).toFixed(1) : 0,
-      totalStudents: course._count.enrollments,
-      reviewCount: course.reviews.length,
-    } });
+    res.json({ success: true, data: formatCourseResponse(course, course.lessons) });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 });
 
-
-
-// Check enrollment
+// Check enrollment (dat truoc /:slug)
 router.get('/:courseId/enrollment', authenticate, async (req, res) => {
   try {
+    const courseId = parseInt(req.params.courseId);
+    if (Number.isNaN(courseId)) {
+      return res.status(400).json({ success: false, message: 'ID khong hop le' });
+    }
     const enrollment = await prisma.enrollment.findUnique({
-      where: { userId_courseId: { userId: req.user.id, courseId: parseInt(req.params.courseId) } },
+      where: { userId_courseId: { userId: req.user.id, courseId } },
       include: { progress: true },
     });
     res.json({ success: true, data: { enrolled: !!enrollment, enrollment } });
@@ -297,9 +318,37 @@ router.get('/:courseId/enrollment', authenticate, async (req, res) => {
   }
 });
 
-// Add review
+// Get course by slug (public — ẩn video/nội dung trừ bài preview)
+router.get('/:slug', optionalAuthenticate, async (req, res) => {
+  try {
+    const course = await prisma.course.findUnique({
+      where: { slug: req.params.slug },
+      include: courseInclude,
+    });
+    if (!course) return res.status(404).json({ success: false, message: 'Không tìm thấy khóa học' });
+    if (!course.isPublished && !canAccessFullCourse(req.user, false)) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy khóa học' });
+    }
+
+    const enrolled = req.user ? await isUserEnrolled(req.user.id, course.id) : false;
+    const lessons = canAccessFullCourse(req.user, enrolled)
+      ? course.lessons
+      : sanitizeLessonsForPublic(course.lessons);
+
+    res.json({ success: true, data: formatCourseResponse(course, lessons) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+// Add review (phải đã ghi danh)
 router.post('/:courseId/reviews', authenticate, async (req, res) => {
   try {
+    const courseId = parseInt(req.params.courseId);
+    const enrolled = await isUserEnrolled(req.user.id, courseId);
+    if (!enrolled && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Chỉ học viên đã ghi danh mới được đánh giá' });
+    }
     const { rating, comment } = req.body;
     const review = await prisma.review.upsert({
       where: { userId_courseId: { userId: req.user.id, courseId: parseInt(req.params.courseId) } },
@@ -321,7 +370,15 @@ router.post('/:courseId/lessons/:lessonId/progress', authenticate, async (req, r
     });
     if (!enrollment) return res.status(403).json({ success: false, message: 'Bạn chưa đăng ký khóa học này' });
 
-    // 2. Upsert progress
+    const courseId = parseInt(req.params.courseId);
+    const lessonId = parseInt(req.params.lessonId);
+    const lesson = await prisma.lesson.findFirst({
+      where: { id: lessonId, courseId },
+    });
+    if (!lesson) {
+      return res.status(400).json({ success: false, message: 'Bai hoc khong thuoc khoa hoc nay' });
+    }
+
     const progress = await prisma.progress.upsert({
       where: { enrollmentId_lessonId: { enrollmentId: enrollment.id, lessonId: parseInt(req.params.lessonId) } },
       update: { completed: true, completedAt: new Date() },

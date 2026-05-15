@@ -23,8 +23,12 @@ import useAuthStore from './store/authStore';
 import './index.css';
 
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated } = useAuthStore();
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== 'admin') {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
 };
 
 export default function App() {

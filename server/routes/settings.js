@@ -2,14 +2,16 @@ const express = require('express');
 const prisma = require('../lib/db');
 const { authenticate, authorize } = require('../middleware/auth');
 
+const { filterPublicSettings } = require('../lib/settingsPublic');
+
 const router = express.Router();
 
-// Get settings (public)
+// Get settings (public — khong tra key nhay cam)
 router.get('/', async (req, res) => {
   try {
     const settings = await prisma.systemSetting.findMany();
     const formatted = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
-    res.json({ success: true, data: formatted });
+    res.json({ success: true, data: filterPublicSettings(formatted) });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
