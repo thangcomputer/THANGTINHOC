@@ -1,4 +1,4 @@
-﻿DOMAIN=thangtinhoc.vn
+DOMAIN=thangtinhoc.vn
 ADMIN_DOMAIN=admin.thangtinhoc.vn
 APP_DIR=/www/wwwroot/thangtinhoc
 PORT=5001
