@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { uploadAdminFile } from '../lib/uploadFile';
 import Loading from '../components/Loading';
 import VisualBuilder from '../components/VisualBuilder';
 import HomeEditorNav from '../components/HomeEditorNav';
@@ -410,11 +411,9 @@ export default function HomeEditor() {
 
   // Upload helper
   const uploadImage = async (file) => {
-    const formData = new FormData();
-    formData.append('image', file);
-    const res = await api.post('/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-    if (res.data.success) return res.data.data.url;
-    throw new Error('Upload failed');
+    const url = await uploadAdminFile(file);
+    if (!url) throw new Error('Upload failed');
+    return url;
   };
 
   // ─── Generic list handlers ───

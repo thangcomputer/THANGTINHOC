@@ -100,9 +100,7 @@ export default function LessonManager() {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('title', matTitle || file.name);
-      await api.post(`/lessons/${matLesson.id}/materials`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await api.post(`/lessons/${matLesson.id}/materials`, fd);
       toast.success('Tải lên tài liệu thành công');
       setMatTitle('');
       const res = await api.get(`/lessons/${matLesson.id}/materials`);

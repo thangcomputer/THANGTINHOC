@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { uploadAdminFile } from '../lib/uploadFile';
 import Loading from '../components/Loading';
 import MediaPicker from '../components/MediaPicker';
 import { clientPath } from '../lib/clientUrl';
@@ -416,11 +417,10 @@ export default function PostForm() {
     if (!files.length) return;
     const uploaded = [];
     for (const file of files) {
-      const formData = new FormData();
-      formData.append('image', file);
       try {
-        const res = await api.post('/upload', formData);
-        uploaded.push({ url: res.data.data.url, title: '', alt: '' });
+        const url = await uploadAdminFile(file);
+        if (!url) throw new Error('No URL');
+        uploaded.push({ url, title: '', alt: '' });
       } catch {
         toast.error(`Lỗi khi tải ảnh ${file.name}`);
       }
@@ -439,11 +439,9 @@ export default function PostForm() {
     input.onchange = async () => {
       const file = input.files[0];
       if (!file) return;
-      const formData = new FormData();
-      formData.append('image', file);
       try {
-        const res = await api.post('/upload', formData);
-        const url = res.data.data.url;
+        const url = await uploadAdminFile(file);
+        if (!url) throw new Error('No URL');
         const editor = quillRef.current?.getEditor();
         if (editor) {
           const range = editor.getSelection();

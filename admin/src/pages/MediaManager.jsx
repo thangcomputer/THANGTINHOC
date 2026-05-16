@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import api from '../lib/api';
+import { uploadAdminFile } from '../lib/uploadFile';
 import { toast } from 'react-hot-toast';
 import { Upload, Trash2, Copy, CheckSquare, Square, List, Grid, RefreshCw, Save } from 'lucide-react';
 import './MediaManager.css';
@@ -123,10 +124,8 @@ export default function MediaManager() {
     toast.loading('Đang tải ảnh lên...', { id: 'upload' });
     let count = 0;
     for (const file of files) {
-      const formData = new FormData();
-      formData.append('image', file);
       try {
-        await api.post('/upload', formData);
+        await uploadAdminFile(file);
         count++;
       } catch {
         toast.error(`Lỗi: ${file.name}`);

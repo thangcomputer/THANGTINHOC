@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageSquare, Reply, User, BookOpen, Loader2, Trash2, RefreshCw, ChevronDown, ChevronUp, X, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { uploadAdminFile } from '../lib/uploadFile';
 import Loading from '../components/Loading';
 import { useConfirm } from '../components/ConfirmProvider';
 import { clientPath } from '../lib/clientUrl';
@@ -202,11 +203,10 @@ export default function QA() {
     const file = e.target.files[0];
     if (!file) return;
     setImageUploading(true);
-    const formData = new FormData();
-    formData.append('image', file);
     try {
-      const res = await api.post('/upload', formData);
-      setReplyImage(res.data.data.url);
+      const url = await uploadAdminFile(file);
+      if (!url) throw new Error('No URL');
+      setReplyImage(url);
       toast.success('Đã tải ảnh lên');
     } catch { toast.error('Tải ảnh thất bại'); }
     finally { setImageUploading(false); }

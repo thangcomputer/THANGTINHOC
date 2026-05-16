@@ -23,18 +23,16 @@ const imageFilter = (req, file, cb) => {
   if (allowed.test(path.extname(file.originalname)) && file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(new Error('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP)'));
+    cb(new Error('Chi chap nhan file anh (JPEG, PNG, GIF, WebP)'));
   }
 };
 
-// Học viên: avatar, ảnh bình luận — tối đa 5MB
 const uploadUserImage = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: imageFilter,
 });
 
-// Admin: ảnh + video CMS
 const uploadMedia = multer({
   storage,
   limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE, 10) || 100 * 1024 * 1024 },
@@ -44,38 +42,62 @@ const uploadMedia = multer({
     if (allowedExt.test(path.extname(file.originalname)) && allowedMime.test(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ chấp nhận file ảnh hoặc video'));
+      cb(new Error('Chi chap nhan file anh hoac video'));
     }
   },
 });
 
+/** URL tuong doi — hoat dong qua reverse proxy /uploads */
+function buildPublicFileUrl(req, filename) {
+  const siteUrl = (process.env.SITE_URL || '').replace(/\/+$/, '');
+  if (siteUrl) return `${siteUrl}/uploads/${filename}`;
+  return `/uploads/${filename}`;
+}
+
 function sendUploadResponse(req, res) {
-  if (!req.file) return res.status(400).json({ success: false, message: 'Không có file' });
-  const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'Khong co file' });
+  }
+  const url = buildPublicFileUrl(req, req.file.filename);
   res.json({ success: true, url, data: { url, filename: req.file.filename } });
 }
 
-// POST /api/upload/user-image — học viên (ảnh nhỏ)
+function pickUploadedFile(req) {
+  if (req.file) return req.file;
+  const files = req.files;
+  if (!files) return null;
+  if (files.file?.[0]) return files.file[0];
+  if (files.image?.[0]) return files.image[0];
+  return null;
+}
+
+function handleAdminUpload(req, res) {
+  req.file = pickUploadedFile(req);
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'Khong co file. Dung field file hoac image.' });
+  }
+  sendUploadResponse(req, res);
+}
+
+// Chap nhan ca field "file" va "image" trong MOT lan parse (tranh loi stream bi doc 2 lan)
+const adminUpload = uploadMedia.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'image', maxCount: 1 },
+]);
+
 router.post('/user-image', authenticate, uploadUserImage.single('image'), (req, res) => {
   sendUploadResponse(req, res);
 });
 
-// POST /api/upload — admin only (ảnh + video)
-router.post('/', authenticate, authorize('admin'), (req, res, next) => {
-  const handler = uploadMedia.single('file');
-  handler(req, res, (err) => {
-    if (err && err.code === 'LIMIT_UNEXPECTED_FILE') {
-      return uploadMedia.single('image')(req, res, (err2) => {
-        if (err2) return res.status(400).json({ success: false, message: err2.message });
-        sendUploadResponse(req, res);
-      });
+router.post('/', authenticate, authorize('admin'), (req, res) => {
+  adminUpload(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, message: err.message || 'Loi upload' });
     }
-    if (err) return res.status(400).json({ success: false, message: err.message });
-    sendUploadResponse(req, res);
+    handleAdminUpload(req, res);
   });
 });
 
-// POST /api/upload/image — admin only (legacy)
 router.post('/image', authenticate, authorize('admin'), uploadUserImage.single('image'), (req, res) => {
   sendUploadResponse(req, res);
 });

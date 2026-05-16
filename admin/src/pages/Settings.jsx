@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { uploadAdminFile } from '../lib/uploadFile';
 import Loading from '../components/Loading';
 
 // ── Preset social icons (SVG paths) ──
@@ -120,15 +121,15 @@ export default function Settings() {
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append('image', file);
     try {
-      const res = await api.post('/upload', formData);
-      setSettings({ ...settings, site_logo: res.data.data.url });
+      const url = await uploadAdminFile(file);
+      if (!url) throw new Error('Khong nhan duoc URL anh');
+      setSettings({ ...settings, site_logo: url });
       toast.success('Đã tải lên Logo mới!');
-    } catch {
-      toast.error('Lỗi khi tải ảnh');
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Lỗi khi tải ảnh');
     }
+    e.target.value = '';
   };
 
   // Social button CRUD

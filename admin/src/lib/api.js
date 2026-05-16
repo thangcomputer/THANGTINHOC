@@ -34,7 +34,13 @@ api.interceptors.request.use((config) => {
   }
   if (deviceId) {
     config.headers['X-Device-Id'] = deviceId;
-    if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
+    if (config.data instanceof FormData) {
+      // Axios tu gan boundary — khong duoc set Content-Type thieu boundary
+      if (config.headers) {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    } else if (config.data && typeof config.data === 'object') {
       config.data = { ...config.data, deviceId };
     }
   }

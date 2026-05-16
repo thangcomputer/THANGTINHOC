@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Save, Upload, X, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { uploadAdminFile } from '../lib/uploadFile';
 import Loading from '../components/Loading';
 import MediaPicker from '../components/MediaPicker';
 
@@ -53,11 +54,10 @@ export default function CourseForm() {
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append('image', file);
     try {
-      const res = await api.post('/upload', formData);
-      setForm(prev => ({ ...prev, thumbnail: res.data.data.url }));
+      const url = await uploadAdminFile(file);
+      if (!url) throw new Error('No URL');
+      setForm(prev => ({ ...prev, thumbnail: url }));
       toast.success('Tải ảnh thành công');
     } catch { toast.error('Lỗi khi tải ảnh'); }
   };
