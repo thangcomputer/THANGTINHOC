@@ -4,7 +4,19 @@ set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Lay GOOGLE_CLIENT_ID tu server/.env de nhung vao build client (Vite)
+GOOGLE_ID=""
+if [ -f server/.env ]; then
+  GOOGLE_ID=$(grep -E '^GOOGLE_CLIENT_ID=' server/.env | head -1 | cut -d= -f2- | tr -d '\r" ')
+fi
 rm -f client/.env admin/.env 2>/dev/null || true
+if [ -n "$GOOGLE_ID" ]; then
+  cat > client/.env <<EOF
+VITE_API_URL=/api
+VITE_GOOGLE_CLIENT_ID=${GOOGLE_ID}
+EOF
+  echo "==> client/.env: VITE_GOOGLE_CLIENT_ID da gan"
+fi
 
 echo "==> build:merged..."
 npm run build:merged
