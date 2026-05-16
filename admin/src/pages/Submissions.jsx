@@ -15,15 +15,23 @@ export default function Submissions() {
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('all'); // all, pending, graded
 
+  const STORAGE_KEY = 'admin_submissions_course_id';
+
   useEffect(() => {
     api.get('/courses?limit=100').then(res => {
       const list = res.data.data || [];
       setCourses(list);
       if (list.length > 0) {
-        setSelectedCourse(list[0].id);
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const match = saved && list.find((c) => String(c.id) === saved);
+        setSelectedCourse(match ? saved : String(list[0].id));
       }
     }).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (selectedCourse) localStorage.setItem(STORAGE_KEY, String(selectedCourse));
+  }, [selectedCourse]);
 
   useEffect(() => {
     if (selectedCourse) fetchSubmissions();

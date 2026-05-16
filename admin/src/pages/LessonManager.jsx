@@ -4,8 +4,10 @@ import { Plus, Edit, Trash2, ArrowLeft, Save, Play, BookOpen, X, Loader2, Upload
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
+import { useConfirm } from '../components/ConfirmProvider';
 
 export default function LessonManager() {
+  const confirm = useConfirm();
   const { id: courseId } = useParams();
   const [course, setCourse] = useState(null);
   const [lessons, setLessons] = useState([]);
@@ -55,7 +57,13 @@ export default function LessonManager() {
   };
 
   const handleDelete = async (lessonId) => {
-    if (!window.confirm('Xóa bài học này?')) return;
+    const ok = await confirm({
+      title: 'Xóa bài học',
+      message: 'Bài học sẽ bị xóa vĩnh viễn. Tiếp tục?',
+      danger: true,
+      confirmLabel: 'Xóa',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/courses/${courseId}/lessons/${lessonId}`);
       toast.success('Đã xóa bài học');

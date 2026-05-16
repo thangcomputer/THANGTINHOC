@@ -3,6 +3,7 @@ import { MessageSquare, Trash2, Eye, Phone, Search, CheckCircle, RefreshCcw } fr
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import Loading from '../components/Loading';
+import { useConfirm } from '../components/ConfirmProvider';
 
 const STATUS_MAP = {
   new:      { label: 'Mới',       color: '#6366f1', bg: '#6366f115' },
@@ -11,6 +12,7 @@ const STATUS_MAP = {
 };
 
 export default function Inquiries() {
+  const confirm = useConfirm();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
@@ -41,7 +43,13 @@ export default function Inquiries() {
   };
 
   const deleteMessage = async (id) => {
-    if (!confirm('Xóa tin nhắn này?')) return;
+    const ok = await confirm({
+      title: 'Xóa tin nhắn',
+      message: 'Tin nhắn sẽ bị xóa vĩnh viễn. Tiếp tục?',
+      danger: true,
+      confirmLabel: 'Xóa',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/contacts/${id}`);
       setMessages(prev => prev.filter(m => m.id !== id));

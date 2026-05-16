@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Eye, Search, X, Trash2, ShieldCheck } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Search, Trash2, ShieldCheck, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
 import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
+import { usePagedList } from '../hooks/usePagedList';
+import { useConfirm } from '../components/ConfirmProvider';
+import { downloadCsv } from '../lib/exportCsv';
 
 export default function OrderList() {
+  const confirm = useConfirm();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
@@ -33,7 +38,13 @@ export default function OrderList() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Xóa đơn hàng này? Hành động không thể hoàn tác.')) return;
+    const ok = await confirm({
+      title: 'Xóa đơn hàng',
+      message: 'Hành động không thể hoàn tác. Tiếp tục?',
+      danger: true,
+      confirmLabel: 'Xóa',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/orders/${id}`);
       toast.success('Đã xóa đơn hàng');
@@ -46,7 +57,12 @@ export default function OrderList() {
   
 
   const handleGrantAccess = async (id) => {
-    if (!window.confirm('Cấp quyền truy cập khóa học cho đơn hàng này?')) return;
+    const ok = await confirm({
+      title: 'Cấp quyền khóa học',
+      message: 'Gán quyền truy cập khóa học cho đơn hàng này?',
+      confirmLabel: 'Cấp quyền',
+    });
+    if (!ok) return;
     try {
       await api.post(`/orders/${id}/grant`);
       toast.success('Đã cấp quyền truy cập khóa học');
@@ -56,11 +72,41 @@ export default function OrderList() {
     }
   }
 
-  const filtered = orders.filter(o =>
-    (o.orderCode || '').toLowerCase().includes(search.toLowerCase()) ||
-    (o.user?.fullName || '').toLowerCase().includes(search.toLowerCase()) ||
-    (o.user?.email || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const { items: pagedOrders, page, setPage, total, totalPages } = usePagedList(orders, {
+    pageSize: 15,
+    search,
+    searchFn: (o, q) =>
+      (o.orderCode || '').toLowerCase().includes(q) ||
+      (o.user?.fullName || '').toLowerCase().includes(q) ||
+      (o.user?.email || '').toLowerCase().includes(q),
+  });
+
+  const handleExportCsv = () => {
+    const source = orders.filter((o) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return !status || o.status === status;
+      const matchSearch =
+        (o.orderCode || '').toLowerCase().includes(q) ||
+        (o.user?.fullName || '').toLowerCase().includes(q) ||
+        (o.user?.email || '').toLowerCase().includes(q);
+      const matchStatus = !status || o.status === status;
+      return matchSearch && matchStatus;
+    });
+    if (!source.length) return toast.error('Không có dữ liệu để xuất');
+    const rows = [
+      ['Mã đơn', 'Học viên', 'Email', 'Tổng tiền', 'Trạng thái', 'Ngày tạo'],
+      ...source.map((o) => [
+        o.orderCode,
+        o.user?.fullName || '',
+        o.user?.email || '',
+        o.totalAmount,
+        o.status,
+        new Date(o.createdAt).toLocaleString('vi-VN'),
+      ]),
+    ];
+    downloadCsv(`don-hang-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    toast.success(`Đã xuất ${source.length} đơn`);
+  };
 
   const getStatusBadge = (s) => {
     const map = {
@@ -76,21 +122,21 @@ export default function OrderList() {
     <div className="animate-fade-in">
       <div className="page-header">
         <div className="page-title">
-          <h1>Quản Lý Đơn Hàng</h1>
+          <h1>Quản lý đơn hàng</h1>
           <p>Lịch sử giao dịch và đăng ký khóa học</p>
         </div>
       </div>
 
       <div className="card">
-        <div className="card-header" style={{ gap: '12px' }}>
-          <div className="search-input-wrap">
+        <div className="card-header" style={{ gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="search-input-wrap" style={{ flex: '1 1 200px' }}>
             <Search size={16} className="search-icon" />
             <input
               type="text"
               className="form-control"
               placeholder="Tìm theo mã đơn, học viên..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
           <select className="form-control" style={{ width: '200px' }} value={status} onChange={e => setStatus(e.target.value)}>
@@ -99,9 +145,12 @@ export default function OrderList() {
             <option value="paid">Đã thanh toán</option>
             <option value="cancelled">Đã hủy</option>
           </select>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={handleExportCsv}>
+            <Download size={16} /> Xuất CSV
+          </button>
         </div>
 
-        <div className="table-wrap">
+        <div className="table-wrap responsive-table">
           <table>
             <thead>
               <tr>
@@ -116,31 +165,31 @@ export default function OrderList() {
             <tbody>
               {loading ? (
                 <tr><td colSpan="6"><Loading /></td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan="6"><EmptyState message="Không thấy đơn hàng nào" /></td></tr>
-              ) : filtered.map(order => (
+              ) : pagedOrders.length === 0 ? (
+                <tr><td colSpan="6"><EmptyState title="Không có đơn hàng" message="Thử đổi bộ lọc hoặc từ khóa." /></td></tr>
+              ) : pagedOrders.map(order => (
                 <tr key={order.id}>
-                  <td>
+                  <td data-label="Mã đơn">
                     <code style={{
                       color: 'var(--primary)', fontWeight: 700,
                       background: 'var(--primary-50)', padding: '2px 8px',
                       borderRadius: '4px', fontSize: '0.8rem',
                     }}>#{order.orderCode}</code>
                   </td>
-                  <td>
+                  <td data-label="Học viên">
                     <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{order.user?.fullName}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{order.user?.email}</div>
                   </td>
-                  <td>
+                  <td data-label="Khóa học">
                     {(order.orderItems || []).map(item => (
                       <div key={item.id} style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{ color: 'var(--text-muted)' }}>•</span> {item.course?.title}
                       </div>
                     ))}
                   </td>
-                  <td style={{ fontWeight: 700 }}>{new Intl.NumberFormat('vi-VN').format(order.totalAmount)}đ</td>
-                  <td>{getStatusBadge(order.status)}</td>
-                  <td>
+                  <td data-label="Tổng tiền" style={{ fontWeight: 700 }}>{new Intl.NumberFormat('vi-VN').format(order.totalAmount)}đ</td>
+                  <td data-label="Trạng thái">{getStatusBadge(order.status)}</td>
+                  <td data-label="Thao tác" className="actions-cell">
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {/* Xác nhận thanh toán */}
                       {order.status === 'pending' && (
@@ -198,6 +247,7 @@ export default function OrderList() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
       </div>
 
       {/* Order Detail Modal */}

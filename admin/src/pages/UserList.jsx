@@ -3,27 +3,69 @@ import { Search, ShieldAlert, CheckCircle, XCircle, X, Edit, Trash2, Key, UserPl
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
+import Pagination from '../components/Pagination';
+import EmptyState from '../components/EmptyState';
+import { useConfirm } from '../components/ConfirmProvider';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const emptyCreate = { fullName: '', email: '', phone: '', password: '', role: 'user' };
 
 export default function UserList() {
+  const confirm = useConfirm();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [editingUser, setEditingUser] = useState(null);
   const [resettingUser, setResettingUser] = useState(null);
   const [creatingUser, setCreatingUser] = useState(false);
   const [createForm, setCreateForm] = useState(emptyCreate);
   const [creating, setCreating] = useState(false);
+  const editTrapRef = useFocusTrap(!!editingUser);
+  const createTrapRef = useFocusTrap(!!creatingUser);
+  const resetTrapRef = useFocusTrap(!!resettingUser);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, roleFilter]);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get('/users', {
+      params: {
+        page,
+        limit: 20,
+        search: debouncedSearch || undefined,
+        role: roleFilter || undefined,
+      },
+    }).then(res => {
+      setUsers(res.data.data || []);
+      setPagination(res.data.pagination || { total: 0, totalPages: 1 });
+    }).finally(() => setLoading(false));
+  }, [page, roleFilter, debouncedSearch]);
 
   const fetchUsers = () => {
     setLoading(true);
-    api.get('/users').then(res => {
+    api.get('/users', {
+      params: {
+        page,
+        limit: 20,
+        search: debouncedSearch || undefined,
+        role: roleFilter || undefined,
+      },
+    }).then(res => {
       setUsers(res.data.data || []);
+      setPagination(res.data.pagination || { total: 0, totalPages: 1 });
     }).finally(() => setLoading(false));
   };
-
-  useEffect(() => { fetchUsers(); }, []);
 
   const toggleStatus = async (id) => {
     try {
@@ -34,10 +76,17 @@ export default function UserList() {
   };
 
   const handleDelete = async (id) => {
+    const ok = await confirm({
+      title: 'Xóa người dùng',
+      message: 'Tài khoản và dữ liệu liên quan sẽ bị xóa. Tiếp tục?',
+      danger: true,
+      confirmLabel: 'Xóa',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/users/${id}`);
-      setUsers(users.filter(u => u.id !== id));
       toast.success('Đã xóa người dùng');
+      fetchUsers();
     } catch (err) { toast.error(err.response?.data?.message || 'Không thể xóa'); }
   };
 
@@ -82,18 +131,12 @@ export default function UserList() {
     }
   };
 
-  const filtered = users.filter(u =>
-    u.fullName?.toLowerCase().includes(search.toLowerCase()) ||
-    u.email?.toLowerCase().includes(search.toLowerCase()) ||
-    u.phone?.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
     <div className="animate-fade-in">
       <div className="page-header">
         <div className="page-title">
-          <h1>Quản Lý Người Dùng</h1>
-          <p>{filtered.length} thành viên trên hệ thống</p>
+          <h1>Quản lý người dùng</h1>
+          <p>{pagination.total} thành viên trên hệ thống</p>
         </div>
         <button
           type="button"
@@ -105,19 +148,29 @@ export default function UserList() {
       </div>
 
       <div className="card">
-        <div className="card-header">
-          <div className="search-input-wrap">
+        <div className="card-header" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+          <div className="search-input-wrap" style={{ flex: '1 1 220px' }}>
             <Search size={16} className="search-icon" />
             <input
               type="text" className="form-control" placeholder="Tìm kiếm tài khoản..."
               value={search} onChange={e => setSearch(e.target.value)}
             />
             {search && (
-              <button className="search-clear-btn" onClick={() => setSearch('')}><X size={14} /></button>
+              <button type="button" className="search-clear-btn" onClick={() => setSearch('')}><X size={14} /></button>
             )}
           </div>
+          <select
+            className="form-control"
+            style={{ width: 'auto', minWidth: '140px' }}
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
+          >
+            <option value="">Tất cả vai trò</option>
+            <option value="user">Học viên</option>
+            <option value="admin">Admin</option>
+          </select>
         </div>
-        <div className="table-wrap">
+        <div className="table-wrap responsive-table">
           <table>
             <thead>
               <tr>
@@ -132,9 +185,9 @@ export default function UserList() {
             <tbody>
               {loading ? (
                 <tr><td colSpan="6"><Loading /></td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Không tìm thấy</td></tr>
-              ) : filtered.map(user => (
+              ) : users.length === 0 ? (
+                <tr><td colSpan="6"><EmptyState title="Không có người dùng" message="Thử đổi từ khóa hoặc bộ lọc." actionLabel="Tạo người dùng" onAction={() => { setCreatingUser(true); setCreateForm(emptyCreate); }} /></td></tr>
+              ) : users.map(user => (
                 <tr key={user.id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -187,14 +240,20 @@ export default function UserList() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          page={page}
+          totalPages={pagination.totalPages || 1}
+          total={pagination.total || 0}
+          onPageChange={setPage}
+        />
       </div>
 
       {/* Create User Modal */}
       {creatingUser && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '480px' }}>
+          <div className="modal-content" style={{ maxWidth: '480px' }} ref={createTrapRef}>
             <div className="modal-header">
-              <h2><UserPlus size={18} /> Tạo Người Dùng Mới</h2>
+              <h2><UserPlus size={18} /> Tạo người dùng mới</h2>
               <button type="button" onClick={() => setCreatingUser(false)} className="btn btn-secondary btn-icon btn-sm"><X size={18} /></button>
             </div>
             <form onSubmit={handleCreateSubmit} className="modal-form">
@@ -239,9 +298,9 @@ export default function UserList() {
       {/* Edit Modal */}
       {editingUser && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" ref={editTrapRef}>
             <div className="modal-header">
-              <h2>Sửa Thông Tin</h2>
+              <h2>Sửa thông tin</h2>
               <button type="button" onClick={() => setEditingUser(null)} className="btn btn-secondary btn-icon btn-sm"><X size={18} /></button>
             </div>
             <form onSubmit={handleEditSubmit} className="modal-form">
@@ -280,9 +339,9 @@ export default function UserList() {
       {/* Reset Password Modal */}
       {resettingUser && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '420px' }}>
+          <div className="modal-content" style={{ maxWidth: '420px' }} ref={resetTrapRef}>
             <div className="modal-header">
-              <h2>Đặt Lại Mật Khẩu</h2>
+              <h2>Đặt lại mật khẩu</h2>
               <button type="button" onClick={() => setResettingUser(null)} className="btn btn-secondary btn-icon btn-sm"><X size={18} /></button>
             </div>
             <form onSubmit={handleResetSubmit} className="modal-form">

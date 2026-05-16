@@ -170,15 +170,26 @@ export default function Login() {
           </button>
         </form>
 
-        <p style={{ 
-          textAlign: 'center', 
-          marginTop: '24px', 
-          fontSize: '0.8rem', 
+        <p style={{
+          textAlign: 'center',
+          marginTop: '24px',
+          fontSize: '0.8rem',
           color: 'var(--text-muted)',
           lineHeight: 1.5,
         }}>
           Quên mật khẩu? Liên hệ quản trị hệ thống.
         </p>
+        {import.meta.env.DEV && (
+          <p style={{
+            textAlign: 'center',
+            marginTop: '12px',
+            fontSize: '0.72rem',
+            color: 'var(--text-muted)',
+            opacity: 0.85,
+          }}>
+            Dev: admin@thangtinhoc.vn / admin123 (sau <code>npm run db:seed</code>)
+          </p>
+        )}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Upload, X, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
+import MediaPicker from '../components/MediaPicker';
 
 const slugify = (text) => {
   return text.toString().toLowerCase()
@@ -20,6 +21,7 @@ export default function CourseForm() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [form, setForm] = useState({
     title: '', slug: '', description: '', price: 0, originalPrice: 0, level: 'beginner',
     categoryId: '', thumbnail: '', isPublished: false, isFeatured: false,
@@ -273,10 +275,18 @@ export default function CourseForm() {
                   </label>
                 )}
               </div>
+              <button type="button" className="btn btn-outline btn-sm" style={{ width: '100%', marginTop: 12 }} onClick={() => setMediaPickerOpen(true)}>
+                Chọn ảnh từ thư viện
+              </button>
             </div>
           </div>
         </div>
       </div>
+      <MediaPicker
+        open={mediaPickerOpen}
+        onClose={() => setMediaPickerOpen(false)}
+        onSelect={(url) => setForm((f) => ({ ...f, thumbnail: url }))}
+      />
     </div>
   );
 }

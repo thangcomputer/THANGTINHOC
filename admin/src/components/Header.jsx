@@ -4,24 +4,13 @@ import { Menu, Bell, Info, MessageSquare, DollarSign, UserPlus } from 'lucide-re
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
+import { getBreadcrumbLabel } from '../lib/crumbs';
 
-const breadcrumbMap = {
-  '/': 'Tổng Quan',
-  '/courses': 'Khóa Học',
-  '/posts': 'Bài Viết',
-  '/users': 'Người Dùng',
-  '/orders': 'Đơn Hàng',
-  '/categories': 'Danh Mục',
-  '/home-cms': 'Trang Chủ CMS',
-  '/settings': 'Cài Đặt Chung',
-  '/qa': 'Hỏi Đáp',
-};
-
-// Map notification type to admin route
-const getNotifLink = (type, data) => {
+const getNotifLink = (type) => {
   if (type === 'PAYMENT') return '/orders';
-  if (type === 'COMMENT') return '/qa';   // Always go to Q&A page
+  if (type === 'COMMENT') return '/qa';
   if (type === 'REGISTER') return '/users';
+  if (type === 'CONTACT' || type === 'INQUIRY') return '/inquiries';
   return null;
 };
 
@@ -56,15 +45,7 @@ export default function Header({ toggleSidebar }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getBreadcrumb = () => {
-    const path = location.pathname;
-    for (const [key, value] of Object.entries(breadcrumbMap)) {
-      if (key === '/' ? path === '/' : path.startsWith(key)) {
-        return value;
-      }
-    }
-    return '';
-  };
+  const breadcrumbLabel = getBreadcrumbLabel(location.pathname);
 
   const markAsRead = async (id) => {
     try {
@@ -119,7 +100,7 @@ export default function Header({ toggleSidebar }) {
         <div className="breadcrumb">
           <span style={{ opacity: 0.5 }}>Admin</span>
           <span style={{ opacity: 0.3 }}>/</span>
-          <span className="current">{getBreadcrumb()}</span>
+          <span className="current">{breadcrumbLabel || 'Trang'}</span>
         </div>
       </div>
 
@@ -152,7 +133,7 @@ export default function Header({ toggleSidebar }) {
                   </div>
                 ) : (
                   notifications.map(n => {
-                    const link = getNotifLink(n.type, n.data);
+                    const link = getNotifLink(n.type);
                     return (
                       <div
                         key={n.id}

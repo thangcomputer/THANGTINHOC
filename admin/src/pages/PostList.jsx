@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Search, Eye, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
+import Pagination from '../components/Pagination';
+import EmptyState from '../components/EmptyState';
+import { usePagedList } from '../hooks/usePagedList';
+import { useConfirm } from '../components/ConfirmProvider';
+import { clientPath } from '../lib/clientUrl';
 
 export default function PostList() {
+  const navigate = useNavigate();
+  const confirm = useConfirm();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -20,27 +27,36 @@ export default function PostList() {
   useEffect(() => { fetchPosts(); }, []);
 
   const handleDelete = async (id) => {
-  if (!window.confirm('Xóa bài viết này?')) return;
-  try {
-    await api.delete(`/posts/${id}`);
-    toast.success('Xóa thành công');
-    fetchPosts();
-  } catch {
-    toast.error('Lỗi khi xóa');
-  }
-};
+    const ok = await confirm({
+      title: 'Xóa bài viết',
+      message: 'Hành động không thể hoàn tác. Tiếp tục?',
+      danger: true,
+      confirmLabel: 'Xóa',
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/posts/${id}`);
+      toast.success('Xóa thành công');
+      fetchPosts();
+    } catch {
+      toast.error('Lỗi khi xóa');
+    }
+  };
 
-  const filtered = posts.filter(p =>
-    p.title.toLowerCase().includes(search.toLowerCase()) ||
-    p.category?.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const { items: pagedPosts, page, setPage, total, totalPages } = usePagedList(posts, {
+    pageSize: 15,
+    search,
+    searchFn: (p, q) =>
+      p.title?.toLowerCase().includes(q) ||
+      p.category?.name?.toLowerCase().includes(q),
+  });
 
   return (
     <div className="animate-fade-in">
       <div className="page-header">
         <div className="page-title">
-          <h1>Quản Lý Bài Viết</h1>
-          <p>{filtered.length} bài viết trên hệ thống</p>
+          <h1>Quản lý bài viết</h1>
+          <p>{total} bài viết trên hệ thống</p>
         </div>
         <Link to="/posts/new" className="btn btn-primary">
           <Plus size={18} /> Viết Bài Mới
@@ -51,13 +67,13 @@ export default function PostList() {
         <div className="card-header">
           <div className="search-input-wrap">
             <Search size={16} className="search-icon" />
-            <input 
+            <input
               type="text" className="form-control" placeholder="Tìm kiếm bài viết..."
-              value={search} onChange={e => setSearch(e.target.value)}
+              value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
               style={{ paddingRight: search ? '36px' : undefined }}
             />
             {search && (
-              <button className="search-clear-btn" onClick={() => setSearch('')}>
+              <button type="button" className="search-clear-btn" onClick={() => setSearch('')}>
                 <X size={14} />
               </button>
             )}
@@ -78,17 +94,17 @@ export default function PostList() {
             <tbody>
               {loading ? (
                 <tr><td colSpan="6"><Loading /></td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Không thấy bài viết nào</td></tr>
-              ) : filtered.map(post => (
+              ) : pagedPosts.length === 0 ? (
+                <tr><td colSpan="6"><EmptyState title="Không có bài viết" message="Thử đổi từ khóa hoặc viết bài mới." actionLabel="Viết bài mới" onAction={() => navigate('/posts/new')} /></td></tr>
+              ) : pagedPosts.map(post => (
                 <tr key={post.id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ 
-                        width: '44px', height: '32px', 
-                        background: 'var(--bg-subtle)', 
-                        borderRadius: '6px', 
-                        overflow: 'hidden', 
+                      <div style={{
+                        width: '44px', height: '32px',
+                        background: 'var(--bg-subtle)',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
                         flexShrink: 0,
                         border: '1px solid var(--border-light)',
                       }}>
@@ -100,8 +116,8 @@ export default function PostList() {
                   <td><span className="badge badge-primary">{post.category?.name || '-'}</span></td>
                   <td style={{ fontWeight: 500 }}>{post.views?.toLocaleString() || 0}</td>
                   <td>
-                    {post.isPublished 
-                      ? <span className="status-pill pill-success">Công khai</span> 
+                    {post.isPublished
+                      ? <span className="status-pill pill-success">Công khai</span>
                       : <span className="badge badge-secondary">Bản nháp</span>}
                   </td>
                   <td style={{ color: 'var(--text-secondary)' }}>{new Date(post.createdAt).toLocaleDateString('vi-VN')}</td>
@@ -110,10 +126,10 @@ export default function PostList() {
                       <Link to={`/posts/edit/${post.id}`} className="btn btn-secondary btn-sm btn-icon" title="Sửa">
                         <Edit size={14} />
                       </Link>
-                      <button onClick={() => handleDelete(post.id)} className="btn btn-secondary btn-sm btn-icon" title="Xóa" style={{ color: 'var(--danger)' }}>
+                      <button type="button" onClick={() => handleDelete(post.id)} className="btn btn-secondary btn-sm btn-icon" title="Xóa" style={{ color: 'var(--danger)' }}>
                         <Trash2 size={14} />
                       </button>
-                      <a href={`${import.meta.env.VITE_CLIENT_URL || 'http://localhost:5173'}/blog/${post.slug}`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm btn-icon" title="Xem">
+                      <a href={clientPath(`/blog/${post.slug}`)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm btn-icon" title="Xem">
                         <Eye size={14} />
                       </a>
                     </div>
@@ -123,6 +139,7 @@ export default function PostList() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
       </div>
     </div>
   );

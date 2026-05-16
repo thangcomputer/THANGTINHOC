@@ -7,8 +7,16 @@ const router = express.Router();
 // Dashboard stats (admin)
 router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
   try {
-    const [totalUsers, totalCourses, totalPosts, totalOrders, recentOrders, topCourses, revenue, categories] = await Promise.all([
-      prisma.user.count({ where: { role: 'user' } }),
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const sixtyDaysAgo = new Date(now);
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+    const userWhere = { role: 'user' };
+    const [totalUsers, totalCourses, totalPosts, totalOrders, recentOrders, topCourses, revenue, categories,
+      usersRecent, usersPrior, coursesRecent, pendingOrders, unreadContacts, unreadRegistrations, unreadRecruitment] = await Promise.all([
+      prisma.user.count({ where: userWhere }),
       prisma.course.count(),
       prisma.post.count(),
       prisma.order.count(),
@@ -25,8 +33,19 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
       prisma.category.findMany({
         where: { type: 'course' },
         include: { _count: { select: { courses: true } } }
-      })
+      }),
+      prisma.user.count({ where: { ...userWhere, createdAt: { gte: thirtyDaysAgo } } }),
+      prisma.user.count({ where: { ...userWhere, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+      prisma.course.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+      prisma.order.count({ where: { status: 'pending' } }),
+      prisma.contactMessage.count({ where: { isRead: false } }),
+      prisma.registration.count({ where: { isRead: false, status: 'pending' } }),
+      prisma.teacherApplication.count({ where: { isRead: false, status: 'pending' } }),
     ]);
+
+    const userTrendPct = usersPrior > 0
+      ? Math.round(((usersRecent - usersPrior) / usersPrior) * 100)
+      : (usersRecent > 0 ? 100 : 0);
 
     const categoryRatio = categories.map(c => ({ name: c.name, value: c._count.courses }));
 
@@ -50,6 +69,15 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
         stats: {
           totalUsers, totalCourses, totalPosts, totalOrders,
           totalRevenue: revenue._sum.totalAmount || 0,
+          trends: {
+            usersRecent,
+            userTrendPct,
+            coursesRecent,
+            pendingOrders,
+            unreadContacts,
+            unreadRegistrations,
+            unreadRecruitment,
+          },
         },
         recentOrders: recentOrders.map(order => ({
           ...order,

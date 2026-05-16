@@ -3,6 +3,10 @@ import { MessageSquare, Reply, User, BookOpen, Loader2, Trash2, RefreshCw, Chevr
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
+import { useConfirm } from '../components/ConfirmProvider';
+import { clientPath } from '../lib/clientUrl';
+import EmptyState from '../components/EmptyState';
+import { ExternalLink } from 'lucide-react';
 
 const REACTIONS = [
   { type: 'like',  emoji: '👍', label: 'Thích' },
@@ -168,6 +172,7 @@ function ReplyBox({ rootComment, parentId, mentionUser, userName, replyText, set
 }
 
 export default function QA() {
+  const confirm = useConfirm();
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -257,7 +262,13 @@ export default function QA() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Xóa bình luận này?')) return;
+    const ok = await confirm({
+      title: 'Xóa bình luận',
+      message: 'Bình luận sẽ bị xóa vĩnh viễn. Tiếp tục?',
+      danger: true,
+      confirmLabel: 'Xóa',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/comments/${id}`);
       toast.success('Đã xóa');
@@ -295,7 +306,7 @@ export default function QA() {
 
       <div className="page-header">
         <div className="page-title">
-          <h1>Quản Lý Hỏi Đáp</h1>
+          <h1>Quản lý hỏi đáp</h1>
           <p>Tương tác và giải đáp thắc mắc của học viên
             {' '}({comments.length} câu hỏi,{' '}
             {comments.reduce((n, c) => n + (c.replies?.length || 0), 0)} câu trả lời)
@@ -315,11 +326,7 @@ export default function QA() {
       <div className="card">
         <div className="card-body" style={{ padding: 0 }}>
           {comments.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-              <MessageSquare size={48} style={{ opacity: 0.15, marginBottom: '12px' }} />
-              <h3 style={{ color: 'var(--text-primary)', fontWeight: 700, marginBottom: '4px' }}>Chưa có câu hỏi</h3>
-              <p style={{ fontSize: '0.875rem' }}>Khi học viên đặt câu hỏi, chúng sẽ hiển thị ở đây.</p>
-            </div>
+            <EmptyState icon={MessageSquare} title="Chưa có câu hỏi" message="Khi học viên đặt câu hỏi trong khóa học, chúng sẽ hiển thị ở đây." />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {comments.map((c, idx) => {
@@ -350,6 +357,17 @@ export default function QA() {
                           {path.course && <strong style={{ color: 'var(--text-secondary)' }}>{path.course}</strong>}
                           {path.course && path.lesson && <span>›</span>}
                           {path.lesson && <span>{path.lesson}</span>}
+                          {(c.course?.slug || c.lesson?.course?.slug) && (
+                            <a
+                              href={clientPath(`/courses/${c.course?.slug || c.lesson?.course?.slug}`)}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ marginLeft: 8, color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExternalLink size={12} /> Xem khóa học
+                            </a>
+                          )}
                         </div>
                       )}
 

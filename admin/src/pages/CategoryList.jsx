@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
 import EmptyState from '../components/EmptyState';
+import { useConfirm } from '../components/ConfirmProvider';
 
 const slugify = (text) => {
   return text.toString().toLowerCase()
@@ -15,6 +16,7 @@ const slugify = (text) => {
 };
 
 export default function CategoryList() {
+  const confirm = useConfirm();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,7 +48,13 @@ export default function CategoryList() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Xóa danh mục này? Tất cả khóa học và bài viết trong danh mục cũng bị xóa.')) return;
+    const ok = await confirm({
+      title: 'Xóa danh mục',
+      message: 'Khóa học và bài viết trong danh mục có thể bị ảnh hưởng. Tiếp tục?',
+      danger: true,
+      confirmLabel: 'Xóa',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/categories/${id}`);
       toast.success('Đã xóa danh mục');

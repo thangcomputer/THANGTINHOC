@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, Search, BookOpen, X, Users as UsersIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
+import Pagination from '../components/Pagination';
+import EmptyState from '../components/EmptyState';
+import { usePagedList } from '../hooks/usePagedList';
+import { useConfirm } from '../components/ConfirmProvider';
+import { clientPath } from '../lib/clientUrl';
 
 export default function CourseList() {
+  const navigate = useNavigate();
+  const confirm = useConfirm();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -20,18 +27,27 @@ export default function CourseList() {
   useEffect(() => { fetchCourses(); }, []);
 
   const handleDelete = async (id) => {
-  if (!window.confirm('Xóa khóa học này? Hành động không thể hoàn tác.')) return;
-  try {
-    await api.delete(`/courses/${id}`);
-    toast.success('Xóa thành công');
-    fetchCourses();
-  } catch { toast.error('Lỗi khi xóa'); }
-};
+    const ok = await confirm({
+      title: 'Xóa khóa học',
+      message: 'Hành động không thể hoàn tác. Tiếp tục?',
+      danger: true,
+      confirmLabel: 'Xóa',
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/courses/${id}`);
+      toast.success('Xóa thành công');
+      fetchCourses();
+    } catch { toast.error('Lỗi khi xóa'); }
+  };
 
-  const filtered = courses.filter(c =>
-    c.title.toLowerCase().includes(search.toLowerCase()) ||
-    c.category?.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const { items: pagedCourses, page, setPage, total, totalPages } = usePagedList(courses, {
+    pageSize: 15,
+    search,
+    searchFn: (c, q) =>
+      c.title?.toLowerCase().includes(q) ||
+      c.category?.name?.toLowerCase().includes(q),
+  });
 
   const getLevelBadge = (level) => {
     const map = {
@@ -47,8 +63,8 @@ export default function CourseList() {
     <div className="animate-fade-in">
       <div className="page-header">
         <div className="page-title">
-          <h1>Quản Lý Khóa Học</h1>
-          <p>{filtered.length} khóa học trên hệ thống</p>
+          <h1>Quản lý khóa học</h1>
+          <p>{total} khóa học trên hệ thống</p>
         </div>
         <Link to="/courses/new" className="btn btn-primary">
           <Plus size={18} /> Thêm Khóa Học
@@ -87,9 +103,9 @@ export default function CourseList() {
             <tbody>
               {loading ? (
                 <tr><td colSpan="7"><Loading /></td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Không thấy khóa học nào</td></tr>
-              ) : filtered.map(course => (
+              ) : pagedCourses.length === 0 ? (
+                <tr><td colSpan="7"><EmptyState title="Không có khóa học" message="Thử đổi từ khóa hoặc thêm khóa mới." actionLabel="Thêm khóa học" onAction={() => navigate('/courses/new')} /></td></tr>
+              ) : pagedCourses.map(course => (
                 <tr key={course.id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -130,7 +146,7 @@ export default function CourseList() {
                       <button onClick={() => handleDelete(course.id)} className="btn btn-secondary btn-sm btn-icon" title="Xóa" style={{ color: 'var(--danger)' }}>
                         <Trash2 size={14} />
                       </button>
-                      <a href={`${import.meta.env.VITE_CLIENT_URL || 'http://localhost:5173'}/courses/${course.slug}`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm btn-icon" title="Xem">
+                      <a href={clientPath(`/courses/${course.slug}`)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm btn-icon" title="Xem" aria-label="Xem trên web">
                         <Eye size={14} />
                       </a>
                     </div>
@@ -140,6 +156,7 @@ export default function CourseList() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
       </div>
     </div>
   );

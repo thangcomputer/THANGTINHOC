@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Save, Upload, X, Loader2, Search, Hash, FileText,
@@ -8,6 +8,8 @@ import {
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
+import MediaPicker from '../components/MediaPicker';
+import { clientPath } from '../lib/clientUrl';
 
 const slugify = (text) => {
   return text.toString().toLowerCase()
@@ -164,6 +166,13 @@ export default function PostForm() {
     metaTitle: '', metaDescription: '', focusKeyword: '', tags: '[]', tableOfContents: '[]'
   });
   const [aiSourceInfo, setAiSourceInfo] = useState(null);
+  const [activeTab, setActiveTab] = useState('content');
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'seo') setSeoOpen(true);
+  }, [activeTab]);
 
   // ── IMAGE INSERT MODAL ──
   const [imgModalOpen, setImgModalOpen] = useState(false);
@@ -355,21 +364,50 @@ export default function PostForm() {
   const toc = useMemo(() => generateTOC(form.content), [form.content]);
   const seo = useMemo(() => analyzeSEO(form), [form]);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const persistPost = useCallback(async ({ publish, redirect = true }) => {
     if (!form.title || !form.slug || !form.categoryId) {
-      return toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return false;
     }
     setSaving(true);
     try {
-      const payload = { ...form, tableOfContents: JSON.stringify(toc) };
+      const payload = {
+        ...form,
+        isPublished: publish ? form.isPublished : false,
+        tableOfContents: JSON.stringify(toc),
+      };
       if (id) await api.put(`/posts/${id}`, payload);
       else await api.post('/posts', payload);
-      toast.success('Lưu thành công');
-      navigate('/posts');
-    } catch { toast.error('Lỗi khi lưu'); }
-    finally { setSaving(false); }
+      toast.success(publish ? 'Lưu thành công' : 'Đã lưu nháp (Ctrl+S)');
+      if (redirect) navigate('/posts');
+      return true;
+    } catch {
+      toast.error('Lỗi khi lưu');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [form, toc, id, navigate]);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    await persistPost({ publish: true, redirect: true });
   };
+
+  const handleSaveDraft = useCallback(() => {
+    persistPost({ publish: false, redirect: false });
+  }, [persistPost]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveDraft();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleSaveDraft]);
 
   const [gallery, setGallery] = useState([]);
 
@@ -974,9 +1012,13 @@ export default function PostForm() {
           <Link to="/posts" className="btn btn-secondary btn-sm" style={{ marginBottom: '12px' }}>
             <ArrowLeft size={16} /> Quay Lại
           </Link>
-          <h1>{id ? 'Chỉnh Sửa' : 'Viết'} Bài Mới</h1>
+          <h1>{id ? 'Chỉnh sửa bài viết' : 'Viết bài mới'}</h1>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>Ctrl+S lưu nháp</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowMobilePreview((v) => !v)}>
+            {showMobilePreview ? 'Ẩn preview mobile' : 'Preview mobile'}
+          </button>
           {/* SEO Score Badge */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: '8px',
@@ -1021,11 +1063,49 @@ export default function PostForm() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px' }}>
+      {showMobilePreview && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-header">
+            <h3 className="card-title">Preview mobile (blog)</h3>
+            <a href={clientPath(`/blog/${form.slug || 'preview'}`)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">Mở trên web</a>
+          </div>
+          <div className="card-body">
+            <div className="blog-mobile-preview">
+              <div className="blog-mobile-preview-inner">
+                {form.thumbnail && <img src={form.thumbnail} alt="" style={{ width: '100%', borderRadius: 8, marginBottom: 12 }} />}
+                <h2 style={{ fontSize: '1.1rem', margin: '0 0 8px' }}>{form.title || 'Tiêu đề bài viết'}</h2>
+                <div dangerouslySetInnerHTML={{ __html: form.content || '<p>Nội dung...</p>' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="admin-form-tabs" role="tablist">
+        {[
+          { id: 'content', label: 'Nội dung' },
+          { id: 'seo', label: 'SEO' },
+          { id: 'publish', label: 'Xuất bản' },
+          ...(!id ? [{ id: 'ai', label: 'AI' }] : []),
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`admin-form-tab ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
         {/* ═══ LEFT COLUMN ═══ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} className={activeTab === 'publish' || activeTab === 'ai' ? 'post-form-panel-hidden' : ''}>
           {/* Content Card */}
-          <div className="card">
+          <div className={`card ${activeTab !== 'content' ? 'post-form-panel-hidden' : ''}`}>
             <div className="card-header"><h3 className="card-title"><FileText size={16} /> Nội Dung Bài Viết</h3></div>
             <div className="card-body">
               <div className="form-group">
@@ -1127,7 +1207,7 @@ export default function PostForm() {
           </div>
 
           {/* ═══ SEO PANEL ═══ */}
-          <div className="card" style={{ border: `1px solid ${scoreColor}30` }}>
+          <div className={`card ${activeTab !== 'seo' ? 'post-form-panel-hidden' : ''}`} style={{ border: `1px solid ${scoreColor}30` }}>
             <div className="card-header" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => setSeoOpen(!seoOpen)}>
               <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Search size={16} style={{ color: scoreColor }} />
@@ -1245,7 +1325,7 @@ export default function PostForm() {
         </div>
 
         {/* ═══ RIGHT COLUMN ═══ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} className={activeTab !== 'publish' ? 'post-form-panel-hidden' : ''}>
           {/* Publish */}
           <div className="card">
             <div className="card-header"><h3 className="card-title">Xuất Bản</h3></div>
@@ -1347,6 +1427,9 @@ export default function PostForm() {
                   disabled={uploadingThumb}
                 />
               </label>
+              <button type="button" className="btn btn-outline btn-sm" style={{ width: '100%', marginBottom: 10 }} onClick={() => setMediaPickerOpen(true)}>
+                Chọn ảnh từ thư viện
+              </button>
 
               {/* Or URL */}
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px' }}>Hoặc nhập URL ảnh:</div>
@@ -1507,7 +1590,33 @@ export default function PostForm() {
             </div>
           </div>
         </div>
+
+        {activeTab === 'ai' && (
+          <div className="card" style={{ border: '1px solid rgba(139, 92, 246, 0.35)' }}>
+            <div className="card-header">
+              <h3 className="card-title"><Sparkles size={16} style={{ color: '#8b5cf6' }} /> Tạo bài bằng AI</h3>
+            </div>
+            <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                AI nghiên cứu chủ đề, viết nội dung chuẩn SEO và điền sẵn meta. Chỉ dùng khi tạo bài mới.
+              </p>
+              {!id ? (
+                <button type="button" className="btn btn-primary" onClick={() => setAiModalOpen(true)}>
+                  <Sparkles size={16} /> Mở trình tạo bài AI
+                </button>
+              ) : (
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Chỉnh sửa bài hiện có — dùng tab Nội dung / SEO.</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      <MediaPicker
+        open={mediaPickerOpen}
+        onClose={() => setMediaPickerOpen(false)}
+        onSelect={(url) => setForm((f) => ({ ...f, thumbnail: url }))}
+      />
     </div>
   );
 }

@@ -3,49 +3,53 @@ import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, BookOpen, FileText, Users, Settings, 
   ShoppingCart, LogOut, Terminal, Folder, Layout, MessageSquare,
-  Eye, Palette, ChevronRight, ClipboardList, Briefcase, Upload, RefreshCw, Loader2
+  Eye, ChevronRight, ClipboardList, Briefcase, Upload, RefreshCw, Loader2,
+  Inbox, HelpCircle, FileCheck, PanelLeftClose, PanelLeftOpen, ImageIcon
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import api from '../lib/api';
+import { clientPath } from '../lib/clientUrl';
+import { filterMenuSections, canAccessMenu } from '../lib/menuPermissions';
+import toast from 'react-hot-toast';
 
 const menuSections = [
   {
     label: null,
     items: [
-      { to: '/', label: 'Tổng Quan', icon: LayoutDashboard, end: true },
+      { to: '/', label: 'Tổng quan', icon: LayoutDashboard, end: true },
     ]
   },
   {
     label: 'NỘI DUNG',
     items: [
-      { to: '/courses', label: 'Khóa Học', icon: BookOpen },
-      { to: '/posts', label: 'Bài Viết', icon: FileText },
-      { to: '/media', label: 'Quản Lý Ảnh', icon: Upload },
-      { to: '/categories', label: 'Danh Mục', icon: Folder },
+      { to: '/courses', label: 'Khóa học', icon: BookOpen },
+      { to: '/posts', label: 'Bài viết', icon: FileText },
+      { to: '/media', label: 'Quản lý ảnh', icon: ImageIcon },
+      { to: '/categories', label: 'Danh mục', icon: Folder },
     ]
   },
   {
     label: 'HỌC VIÊN',
     items: [
-      { to: '/users', label: 'Người Dùng', icon: Users },
-      { to: '/orders', label: 'Đơn Hàng', icon: ShoppingCart, badgeKey: 'orders' },
-      { to: '/inquiries', label: 'Tin Nhắn Tư Vấn', icon: MessageSquare, badgeKey: 'inquiries' },
-      { to: '/qa', label: 'Hỏi Đáp', icon: MessageSquare },
+      { to: '/users', label: 'Người dùng', icon: Users },
+      { to: '/orders', label: 'Đơn hàng', icon: ShoppingCart, badgeKey: 'orders', permKey: 'orders' },
+      { to: '/inquiries', label: 'Tin tư vấn', icon: Inbox, badgeKey: 'inquiries' },
+      { to: '/qa', label: 'Hỏi đáp', icon: HelpCircle },
     ]
   },
   {
     label: 'TUYỂN SINH',
     items: [
-      { to: '/registrations', label: 'Ghi Danh', icon: ClipboardList, badgeKey: 'registrations' },
-      { to: '/recruitment', label: 'Tuyển Dụng GV', icon: Briefcase, badgeKey: 'recruitment' },
-      { to: '/submissions', label: 'Bài Tập', icon: Upload },
+      { to: '/registrations', label: 'Ghi danh', icon: ClipboardList, badgeKey: 'registrations' },
+      { to: '/recruitment', label: 'Tuyển dụng GV', icon: Briefcase, badgeKey: 'recruitment' },
+      { to: '/submissions', label: 'Bài tập', icon: FileCheck },
     ]
   },
   {
     label: 'GIAO DIỆN',
     items: [
-      { to: '/home-cms', label: 'Trang Chủ CMS', icon: Layout },
-      { to: '/settings', label: 'Cài Đặt Chung', icon: Settings },
+      { to: '/home-cms', label: 'Trang chủ CMS', icon: Layout },
+      { to: '/settings', label: 'Cài đặt', icon: Settings, permKey: 'settings' },
     ]
   },
 ];
@@ -71,8 +75,10 @@ const BADGE_APIS = {
   }),
 };
 
-export default function Sidebar({ isOpen, closeSidebar }) {
-  const { logout } = useAuthStore();
+export default function Sidebar({ isOpen, closeSidebar, collapsed, onToggleCollapse }) {
+  const { logout, user } = useAuthStore();
+  const visibleSections = filterMenuSections(menuSections, user?.role);
+  const showCachePurge = canAccessMenu(user?.role, 'cache');
   const [badges, setBadges] = useState({});
   const [purging, setPurging] = useState(false);
 
@@ -93,11 +99,11 @@ export default function Sidebar({ isOpen, closeSidebar }) {
         bc.close();
       }
       const stats = res.data?.data;
-      alert(`✅ Cache đã được xóa thành công!\n\n📊 Server Memory: ${stats?.serverMemory}\n⏱️ Uptime: ${stats?.uptime}\n🔄 Prisma: Reconnected`);
+      toast.success(`Đã xóa cache. RAM: ${stats?.serverMemory}, uptime: ${stats?.uptime}`);
       // Refetch badges
       fetchBadges();
     } catch (err) {
-      alert('❌ Lỗi khi xóa cache: ' + (err.response?.data?.message || err.message));
+      toast.error(err.response?.data?.message || err.message || 'Lỗi khi xóa cache');
     } finally {
       setPurging(false);
     }
@@ -122,7 +128,7 @@ export default function Sidebar({ isOpen, closeSidebar }) {
   const totalUnread = Object.values(badges).reduce((sum, v) => sum + (v || 0), 0);
 
   return (
-    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+    <aside className={`sidebar ${isOpen ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-logo">
         <div className="logo-icon-wrap">
           <Terminal size={20} strokeWidth={2.5} />
@@ -153,7 +159,7 @@ export default function Sidebar({ isOpen, closeSidebar }) {
       </div>
 
       <nav className="sidebar-nav">
-        {menuSections.map((section, sIdx) => (
+        {visibleSections.map((section, sIdx) => (
           <div key={sIdx} className="sidebar-section">
             {section.label && (
               <div className="sidebar-section-label">{section.label}</div>
@@ -166,16 +172,11 @@ export default function Sidebar({ isOpen, closeSidebar }) {
                   to={item.to} 
                   end={item.end || false}
                   className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-                  onClick={() => {
-                    closeSidebar();
-                    // Xóa badge ngay khi bấm vào
-                    if (item.badgeKey && badges[item.badgeKey]) {
-                      setBadges(prev => ({ ...prev, [item.badgeKey]: 0 }));
-                    }
-                  }}
+                  onClick={() => closeSidebar()}
+                  title={collapsed ? item.label : undefined}
                 >
-                  <item.icon size={18} strokeWidth={1.8} />
-                  <span>{item.label}</span>
+                  <item.icon size={18} strokeWidth={1.8} aria-hidden />
+                  {!collapsed && <span>{item.label}</span>}
                   {count > 0 && (
                     <span style={{
                       marginLeft: 'auto',
@@ -205,30 +206,45 @@ export default function Sidebar({ isOpen, closeSidebar }) {
 
       <div className="sidebar-footer">
         <a 
-          href="http://localhost:5173" 
+          href={clientPath('/')}
           target="_blank" 
           rel="noreferrer" 
           className="sidebar-link sidebar-link-external"
+          title={collapsed ? 'Xem trang web' : undefined}
         >
-          <Eye size={18} strokeWidth={1.8} />
-          <span>Xem Trang Web</span>
-          <ChevronRight size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />
+          <Eye size={18} strokeWidth={1.8} aria-hidden />
+          {!collapsed && <span>Xem trang web</span>}
+          {!collapsed && <ChevronRight size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />}
         </a>
-        <button 
-          className="sidebar-link sidebar-link-cache" 
+        <button
+          type="button"
+          className="sidebar-link"
+          onClick={onToggleCollapse}
+          title={collapsed ? 'Mo rong menu' : 'Thu gon menu'}
+          aria-label={collapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
+        >
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          {!collapsed && <span>{collapsed ? 'Mở rộng' : 'Thu gọn menu'}</span>}
+        </button>
+        {showCachePurge && (
+        <button
+          type="button"
+          className="sidebar-link sidebar-link-cache"
           onClick={handlePurgeCache}
           disabled={purging}
           style={{ opacity: purging ? 0.6 : 1 }}
+          aria-label="Xóa cache server"
         >
-          {purging 
-            ? <Loader2 size={18} strokeWidth={1.8} className="spin-icon" /> 
+          {purging
+            ? <Loader2 size={18} strokeWidth={1.8} className="spin-icon" />
             : <RefreshCw size={18} strokeWidth={1.8} />
           }
-          <span>{purging ? 'Đang xóa cache...' : 'Refetch Cache'}</span>
+          {!collapsed && <span>{purging ? 'Đang xóa cache...' : 'Xóa cache server'}</span>}
         </button>
+        )}
         <button className="sidebar-link sidebar-link-logout" onClick={logout}>
           <LogOut size={18} strokeWidth={1.8} />
-          <span>Đăng Xuất</span>
+          {!collapsed && <span>Đăng xuất</span>}
         </button>
       </div>
 

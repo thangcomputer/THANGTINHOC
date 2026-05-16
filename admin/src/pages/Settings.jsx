@@ -60,6 +60,12 @@ export default function Settings() {
   const [chatPages, setChatPages] = useState(['all']); // 'all' or array of paths
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [settingsTab, setSettingsTab] = useState('general');
+
+  const scrollToSection = (id) => {
+    setSettingsTab(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const PAGE_OPTIONS = [
     { path: '/',            label: '🏠 Trang Chủ' },
@@ -145,18 +151,31 @@ export default function Settings() {
     <div className="animate-fade-in">
       <div className="page-header">
         <div className="page-title">
-          <h1>Cài Đặt Hệ Thống</h1>
+          <h1>Cài đặt hệ thống</h1>
           <p>Cấu hình thông tin cơ bản cho toàn website</p>
         </div>
       </div>
 
       <form onSubmit={handleSave}>
+        <div className="settings-layout">
+          <nav className="settings-nav" aria-label="Mục cài đặt">
+            {[
+              { id: 'settings-general', label: 'Thông tin chung' },
+              { id: 'settings-social', label: 'Mạng xã hội' },
+              { id: 'settings-footer', label: 'Footer' },
+              { id: 'settings-tech', label: 'Kỹ thuật' },
+            ].map((t) => (
+              <button key={t.id} type="button" className={settingsTab === t.id ? 'active' : ''} onClick={() => scrollToSection(t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </nav>
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px' }}>
           {/* Left Column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="card">
+            <div className="card" id="settings-general">
               <div className="card-header">
-                <h3 className="card-title">Thông Tin Website</h3>
+                <h3 className="card-title">Thông tin website</h3>
               </div>
               <div className="card-body">
                 <div className="form-group">
@@ -185,9 +204,9 @@ export default function Settings() {
             </div>
 
             {/* ── Social Buttons Manager ── */}
-            <div className="card">
+            <div className="card" id="settings-social">
               <div className="card-header">
-                <h3 className="card-title"><Share2 size={16} /> Nút Mạng Xã Hội</h3>
+                <h3 className="card-title"><Share2 size={16} /> Nút mạng xã hội</h3>
                 <button type="button" className="btn btn-primary btn-sm" onClick={addSocialBtn}>
                   <Plus size={14} /> Thêm nút
                 </button>
@@ -288,7 +307,7 @@ export default function Settings() {
 
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title">Chân Trang (Footer)</h3>
+                <h3 className="card-title" id="settings-footer">Chân trang (Footer)</h3>
               </div>
               <div className="card-body">
                 <div className="form-group">
@@ -335,7 +354,7 @@ export default function Settings() {
 
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title">Tích Hợp & SEO</h3>
+                <h3 className="card-title">Tích hợp & SEO</h3>
               </div>
               <div className="card-body">
                 <div className="form-group">
@@ -354,7 +373,7 @@ export default function Settings() {
             {/* ── Loading Mode ── */}
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title">⚡ Chế Độ Loading</h3>
+                <h3 className="card-title">⚡ Chế độ loading</h3>
               </div>
               <div className="card-body">
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
@@ -422,6 +441,7 @@ export default function Settings() {
               </div>
             </div>
           </div>
+        </div>
         </div>
 
         {/* Sticky Save Button */}

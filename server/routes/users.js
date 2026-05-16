@@ -11,17 +11,33 @@ const router = express.Router();
 // Admin: Get all users
 router.get('/', authenticate, authorize('admin'), async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, search = '', role } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+    const where = {};
+    if (role && ALLOWED_ROLES.includes(role)) where.role = role;
+    if (search && String(search).trim()) {
+      const q = String(search).trim();
+      where.OR = [
+        { email: { contains: q } },
+        { fullName: { contains: q } },
+        { phone: { contains: q } },
+      ];
+    }
     const [users, total] = await Promise.all([
       prisma.user.findMany({
-        skip, take: parseInt(limit),
+        where,
+        skip, take,
         select: { id: true, email: true, fullName: true, phone: true, role: true, isActive: true, createdAt: true, _count: { select: { enrollments: true, orders: true } } },
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.user.count(),
+      prisma.user.count({ where }),
     ]);
-    res.json({ success: true, data: users, pagination: { page: parseInt(page), total } });
+    res.json({
+      success: true,
+      data: users,
+      pagination: { page: parseInt(page), limit: take, total, totalPages: Math.ceil(total / take) || 1 },
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }

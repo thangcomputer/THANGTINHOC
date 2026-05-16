@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Users, BookOpen, FileText, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Users, BookOpen, FileText, TrendingUp, ArrowUpRight, ArrowDownRight, ShoppingCart, Inbox, ClipboardList, Briefcase } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -60,35 +61,38 @@ export default function Dashboard() {
   if (!data) return <div style={{ padding: '3rem', textAlign: 'center' }}>Lỗi tải dữ liệu.</div>;
 
   const { stats, recentOrders, categoryRatio, topCourses, monthlyRevenue } = data;
+  const trends = stats.trends || {};
+  const userTrendPct = trends.userTrendPct ?? 0;
 
   const statCards = [
     { 
-      title: 'Tổng Học Viên', 
+      title: 'Tổng học viên', 
       value: stats.totalUsers, 
       icon: Users, 
       bg: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)', 
       iconColor: '#6366f1',
-      trend: '+12%', 
-      trendUp: true 
+      trend: trends.usersRecent != null ? `+${trends.usersRecent} / 30 ngày` : null,
+      trendUp: userTrendPct >= 0,
+      sub: userTrendPct !== 0 ? `${userTrendPct > 0 ? '+' : ''}${userTrendPct}% so với kỳ trước` : null,
     },
     { 
-      title: 'Khóa Học', 
+      title: 'Khóa học', 
       value: stats.totalCourses, 
       icon: BookOpen, 
       bg: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)', 
       iconColor: '#059669',
-      trend: '+3', 
-      trendUp: true 
+      trend: trends.coursesRecent != null ? `+${trends.coursesRecent} mới` : null,
+      trendUp: true,
     },
     { 
-      title: 'Bài Viết', 
+      title: 'Bài viết', 
       value: stats.totalPosts, 
       icon: FileText, 
       bg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', 
       iconColor: '#d97706' 
     },
     { 
-      title: 'Doanh Thu', 
+      title: 'Doanh thu', 
       value: new Intl.NumberFormat('vi-VN').format(stats.totalRevenue) + 'đ', 
       icon: TrendingUp, 
       bg: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)', 
@@ -96,11 +100,18 @@ export default function Dashboard() {
     },
   ];
 
+  const quickLinks = [
+    { to: '/orders', label: 'Đơn chờ xử lý', count: trends.pendingOrders, icon: ShoppingCart },
+    { to: '/inquiries', label: 'Tin tư vấn chưa đọc', count: trends.unreadContacts, icon: Inbox },
+    { to: '/registrations', label: 'Ghi danh chờ xử lý', count: trends.unreadRegistrations, icon: ClipboardList },
+    { to: '/recruitment', label: 'Tuyển dụng chờ xử lý', count: trends.unreadRecruitment, icon: Briefcase },
+  ].filter((q) => q.count == null || q.count > 0);
+
   return (
     <div className="animate-fade-in">
       <div className="page-header">
         <div className="page-title">
-          <h1>Tổng Quan Hệ Thống</h1>
+          <h1>Tổng quan hệ thống</h1>
           <p>Chào mừng trở lại! Đây là số liệu thống kê mới nhất.</p>
         </div>
       </div>
@@ -117,6 +128,7 @@ export default function Dashboard() {
               <div className="stat-info">
                 <p className="stat-title">{s.title}</p>
                 <span className="stat-value">{s.value}</span>
+                {s.sub && <span className="stat-sub">{s.sub}</span>}
               </div>
               {s.trend && (
                 <div style={{ 
@@ -139,6 +151,21 @@ export default function Dashboard() {
           );
         })}
       </div>
+
+      {quickLinks.some((q) => q.count > 0) && (
+        <div className="dashboard-quick-links">
+          {quickLinks.filter((q) => q.count > 0).map((q) => {
+            const Icon = q.icon;
+            return (
+              <Link key={q.to} to={q.to} className="quick-link-card">
+                <Icon size={18} />
+                <span>{q.label}</span>
+                <span className="quick-link-badge">{q.count}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {/* Charts */}
       <div className="dashboard-grid">
