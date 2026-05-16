@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import useAuthStore from './store/authStore';
 import api from './lib/api';
+import { useSecurityProtection } from './lib/useSecurityProtection';
+import { useIdleLogout } from './lib/useIdleLogout';
 
 // Layout & Components
 import Navbar from './components/Navbar';
@@ -141,6 +143,8 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
+  useSecurityProtection();
+  useIdleLogout();
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
       <RouterProvider router={router} />

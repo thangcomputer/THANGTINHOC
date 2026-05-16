@@ -1,5 +1,6 @@
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
+import { getDeviceId } from './deviceId';
 
 export function loginPageHref() {
   const base = import.meta.env.BASE_URL;
@@ -25,15 +26,28 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('admin_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['X-Device-Id'] = getDeviceId();
+  if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
+    config.data = { ...config.data, deviceId: getDeviceId() };
+  }
   return config;
 });
 
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
-      useAuthStore.getState().logout();
-      window.location.href = loginPageHref();
+    const status = err.response?.status;
+    const code = err.response?.data?.code;
+    if (status === 401 || status === 403) {
+      const msg = err.response?.data?.message;
+      if (code === 'SESSION_IDLE' || code === 'SESSION_DEVICE' || code === 'SESSION_INVALID' || code === 'SESSION_IP' || code === 'IP_IN_USE') {
+        useAuthStore.getState().logout();
+        if (msg) alert(msg);
+        window.location.href = loginPageHref();
+      } else if (status === 401) {
+        useAuthStore.getState().logout();
+        window.location.href = loginPageHref();
+      }
     }
     return Promise.reject(err);
   }

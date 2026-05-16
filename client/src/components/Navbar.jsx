@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { BookOpen, Menu, X, User, LogOut, ChevronDown, LayoutDashboard, GraduationCap, PenTool, Briefcase, Activity } from 'lucide-react';
 import useAuthStore from '../store/authStore';
+import { performLogout } from '../lib/logout';
 import EnrollPopup from './EnrollPopup';
 import SearchBox from './SearchBox';
 import NotificationBell from './NotificationBell';
@@ -14,7 +15,7 @@ export default function Navbar({ settings }) {
   const [scrolled, setScrolled] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const menuRef = useRef(null);
@@ -53,8 +54,8 @@ export default function Navbar({ settings }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await performLogout();
     navigate('/');
   };
 

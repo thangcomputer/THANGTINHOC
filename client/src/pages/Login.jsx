@@ -32,7 +32,9 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await api.post('/auth/login', form);
-      login(res.data.data.user, res.data.data.token);
+      const { user, token, sessionWarning } = res.data.data;
+      login(user, token);
+      if (sessionWarning) toast(sessionWarning, { icon: '⚠️', duration: 6000 });
       toast.success('Đăng nhập thành công!');
       navigate(redirectTo, { replace: true });
     } catch (err) {
@@ -47,7 +49,9 @@ export default function Login() {
       const res = await api.post('/auth/google', {
         credential: credentialResponse.credential
       });
-      login(res.data.data.user, res.data.data.token);
+      const { user, token, sessionWarning } = res.data.data;
+      login(user, token);
+      if (sessionWarning) toast(sessionWarning, { icon: '⚠️', duration: 6000 });
       toast.success('Đăng nhập với Google thành công!');
       navigate(redirectTo, { replace: true });
     } catch (err) {

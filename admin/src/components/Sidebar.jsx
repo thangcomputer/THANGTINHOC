@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import api from '../lib/api';
+import { performLogout } from '../lib/logout';
 import { clientPath } from '../lib/clientUrl';
 import { filterMenuSections, canAccessMenu } from '../lib/menuPermissions';
 import toast from 'react-hot-toast';
@@ -76,7 +77,7 @@ const BADGE_APIS = {
 };
 
 export default function Sidebar({ isOpen, closeSidebar, collapsed, onToggleCollapse }) {
-  const { logout, user } = useAuthStore();
+  const { user } = useAuthStore();
   const visibleSections = filterMenuSections(menuSections, user?.role);
   const showCachePurge = canAccessMenu(user?.role, 'cache');
   const [badges, setBadges] = useState({});
@@ -242,7 +243,7 @@ export default function Sidebar({ isOpen, closeSidebar, collapsed, onToggleColla
           {!collapsed && <span>{purging ? 'Đang xóa cache...' : 'Xóa cache server'}</span>}
         </button>
         )}
-        <button className="sidebar-link sidebar-link-logout" onClick={logout}>
+        <button type="button" className="sidebar-link sidebar-link-logout" onClick={() => performLogout()}>
           <LogOut size={18} strokeWidth={1.8} />
           {!collapsed && <span>Đăng xuất</span>}
         </button>

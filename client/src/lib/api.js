@@ -1,5 +1,6 @@
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
+import { getDeviceId } from './deviceId';
 
 function resolveApiBase() {
   const env = (import.meta.env.VITE_API_URL || '').trim();
@@ -20,6 +21,10 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['X-Device-Id'] = getDeviceId();
+  if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
+    config.data = { ...config.data, deviceId: getDeviceId() };
+  }
   return config;
 });
 
@@ -27,8 +32,20 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
-      useAuthStore.getState().logout();
+    const status = err.response?.status;
+    const code = err.response?.data?.code;
+    if (status === 401 || status === 403) {
+      const msg = err.response?.data?.message;
+      if (code === 'SESSION_IDLE' || code === 'SESSION_DEVICE' || code === 'SESSION_INVALID' || code === 'SESSION_IP') {
+        useAuthStore.getState().logout();
+        if (msg && !window.__sessionAlertShown) {
+          window.__sessionAlertShown = true;
+          setTimeout(() => { window.__sessionAlertShown = false; }, 3000);
+          alert(msg);
+        }
+      } else if (status === 401) {
+        useAuthStore.getState().logout();
+      }
     }
     return Promise.reject(err);
   }

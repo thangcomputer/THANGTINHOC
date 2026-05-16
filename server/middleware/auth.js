@@ -1,8 +1,16 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../lib/db');
+const {
+  getClientIp,
+  getDeviceId,
+  validateUserSession,
+  localizeSessionError,
+} = require('../lib/session');
 
-const generateToken = (userId, role) => {
-  return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
+const generateToken = (userId, role, sessionId) => {
+  const payload = { id: userId, role };
+  if (sessionId) payload.sid = sessionId;
+  return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '7d',
   });
 };
@@ -13,8 +21,25 @@ const authenticate = async (req, res, next) => {
     return res.status(401).json({ success: false, message: 'No token provided' });
   }
   const token = authHeader.split(' ')[1];
+  const deviceId = getDeviceId(req);
+  if (!deviceId) {
+    return res.status(401).json({
+      success: false,
+      code: 'DEVICE_REQUIRED',
+      message: 'Thiếu mã thiết bị. Vui lòng tải lại trang và đăng nhập lại.',
+    });
+  }
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!decoded.sid) {
+      return res.status(401).json({
+        success: false,
+        code: 'SESSION_INVALID',
+        message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       select: { id: true, role: true, isActive: true, fullName: true },
@@ -25,10 +50,20 @@ const authenticate = async (req, res, next) => {
     if (!user.isActive) {
       return res.status(403).json({ success: false, message: 'Tai khoan da bi khoa' });
     }
-    req.user = { id: user.id, role: user.role, fullName: user.fullName };
+
+    const ip = getClientIp(req);
+    await validateUserSession(decoded.sid, user.id, deviceId, ip);
+
+    req.user = { id: user.id, role: user.role, fullName: user.fullName, sessionId: decoded.sid };
     next();
-  } catch {
-    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+  } catch (err) {
+    localizeSessionError(err);
+    const status = err.status || 401;
+    return res.status(status).json({
+      success: false,
+      code: err.code || 'SESSION_INVALID',
+      message: err.message || 'Invalid or expired token',
+    });
   }
 };
 
@@ -50,17 +85,24 @@ const optionalAuthenticate = async (req, res, next) => {
     return next();
   }
   const token = authHeader.split(' ')[1];
+  const deviceId = getDeviceId(req);
+  if (!deviceId) return next();
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!decoded.sid) return next();
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       select: { id: true, role: true, isActive: true },
     });
-    if (user && user.isActive) {
-      req.user = { id: user.id, role: user.role };
-    }
+    if (!user || !user.isActive) return next();
+
+    const ip = getClientIp(req);
+    await validateUserSession(decoded.sid, user.id, deviceId, ip);
+    req.user = { id: user.id, role: user.role, sessionId: decoded.sid };
   } catch {
-    // ignore
+    // Coi như khách nếu phiên không hợp lệ
   }
   next();
 };

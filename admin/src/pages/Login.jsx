@@ -21,9 +21,10 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await api.post('/auth/login', form);
-      const { user, token } = res.data.data;
+      const { user, token, sessionWarning } = res.data.data;
       if (user.role !== 'admin') throw new Error('Cần quyền Admin để truy cập');
       login(user, token);
+      if (sessionWarning) toast(sessionWarning, { icon: '⚠️', duration: 6000 });
       toast.success('Đăng nhập Admin thành công!');
       navigate('/');
     } catch (err) {

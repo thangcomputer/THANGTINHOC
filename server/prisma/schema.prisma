@@ -26,6 +26,20 @@ model User {
   reviews              Review[]
   comments             Comment[]
   submissions          Submission[]
+  sessions             UserSession[]
+}
+
+model UserSession {
+  id             String   @id @default(uuid())
+  userId         Int      @unique
+  deviceId       String
+  ipAddress      String
+  userAgent      String?
+  lastActivityAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([ipAddress])
 }
 
 model Category {

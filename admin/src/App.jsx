@@ -16,6 +16,8 @@ import RecruitmentAdmin from './pages/RecruitmentAdmin';
 import Submissions from './pages/Submissions';
 import Login from './pages/Login';
 import useAuthStore from './store/authStore';
+import { useSecurityProtection } from './lib/useSecurityProtection';
+import { useIdleLogout } from './lib/useIdleLogout';
 import Loading from './components/Loading';
 import './index.css';
 
@@ -51,6 +53,8 @@ function LazyPage({ children }) {
 }
 
 export default function App() {
+  useSecurityProtection();
+  useIdleLogout();
   return (
     <BrowserRouter basename={basename}>
       <Toaster position="bottom-right" />

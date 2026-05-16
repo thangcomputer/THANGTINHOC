@@ -1,9 +1,43 @@
 const express = require('express');
 const prisma = require('../lib/db');
 const bcrypt = require('bcryptjs');
-const { generateToken, authenticate } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { issueAuthSession, logoutUser } = require('../lib/authSession');
 const { sendWelcomeEmail, sendAdminNewUserNotify } = require('../lib/mailer');
 const { validatePassword, isProduction } = require('../lib/validate');
+
+function userAuthPayload(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    role: user.role,
+    avatar: user.avatar,
+    phone: user.phone,
+  };
+}
+
+async function respondWithSession(req, res, user, message, status = 200) {
+  try {
+    const { token, sessionWarning } = await issueAuthSession(req, user);
+    const body = {
+      success: true,
+      message,
+      data: {
+        token,
+        user: userAuthPayload(user),
+      },
+    };
+    if (sessionWarning) body.data.sessionWarning = sessionWarning;
+    res.status(status).json(body);
+  } catch (err) {
+    res.status(err.status || 500).json({
+      success: false,
+      code: err.code,
+      message: err.message || 'Lỗi đăng nhập',
+    });
+  }
+}
 
 const router = express.Router();
 
@@ -25,29 +59,21 @@ router.post('/register', async (req, res) => {
     const user = await prisma.user.create({
       data: { email, password: hashed, fullName, phone },
     });
-    const token = generateToken(user.id, user.role);
-    
-    // Send background emails
+
     sendWelcomeEmail(user);
     sendAdminNewUserNotify(user);
 
-    // Notify Admin (System)
     try {
       await prisma.notification.create({
         data: {
           type: 'REGISTER',
           message: `Học viên mới: ${fullName} vừa đăng ký tài khoản.`,
-          data: JSON.stringify({ email })
-        }
+          data: JSON.stringify({ email }),
+        },
       });
-    } catch(err) {}
+    } catch (err) {}
 
-
-    res.status(201).json({
-      success: true,
-      message: 'Đăng ký thành công',
-      data: { token, user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role } },
-    });
+    await respondWithSession(req, res, user, 'Đăng ký thành công', 201);
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Lỗi server' });
@@ -69,18 +95,25 @@ router.post('/login', async (req, res) => {
     if (!user.isActive) {
       return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa' });
     }
-    const token = generateToken(user.id, user.role);
-    res.json({
-      success: true,
-      message: 'Đăng nhập thành công',
-      data: {
-        token,
-        user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role, avatar: user.avatar },
-      },
-    });
+    await respondWithSession(req, res, user, 'Đăng nhập thành công');
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
+});
+
+// Logout — xóa phiên server
+router.post('/logout', authenticate, async (req, res) => {
+  try {
+    await logoutUser(req.user.id);
+    res.json({ success: true, message: 'Đã đăng xuất' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+// Gia hạn hoạt động (khi chỉ tương tác UI, không gọi API)
+router.post('/heartbeat', authenticate, async (req, res) => {
+  res.json({ success: true, message: 'ok' });
 });
 
 // Get current user
@@ -123,7 +156,11 @@ router.put('/change-password', authenticate, async (req, res) => {
     if (pwdError) return res.status(400).json({ success: false, message: pwdError });
     const hashed = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({ where: { id: req.user.id }, data: { password: hashed } });
-    res.json({ success: true, message: 'Đổi mật khẩu thành công' });
+    await logoutUser(req.user.id);
+    res.json({
+      success: true,
+      message: 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.',
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
@@ -192,16 +229,7 @@ router.post('/google', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa' });
     }
 
-    const token = generateToken(user.id, user.role);
-    res.json({
-      success: true,
-      message: 'Đăng nhập thành công',
-      data: {
-        token,
-        user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role, avatar: user.avatar },
-      },
-    });
-
+    await respondWithSession(req, res, user, 'Đăng nhập thành công');
   } catch (err) {
     console.error('Google Auth Error:', err);
     res.status(500).json({ success: false, message: 'Lỗi xác thực Google' });
@@ -273,8 +301,9 @@ router.post('/reset-password', async (req, res) => {
         resetPasswordExpires: null,
       },
     });
+    await logoutUser(user.id);
 
-    res.json({ success: true, message: 'Đặt lại mật khẩu thành công!' });
+    res.json({ success: true, message: 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Lỗi server' });
