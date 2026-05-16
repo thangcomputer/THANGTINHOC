@@ -1,10 +1,12 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', 'site_dist');
 const ADMIN = path.join(ROOT, 'admin');
 const PORT = Number(process.argv[2] || process.env.PREVIEW_PORT || 4288);
+const API_TARGET = process.env.API_TARGET || 'http://127.0.0.1:5000';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -51,40 +53,62 @@ function resolvePath(urlPath) {
     if (!cand) return path.join(ADMIN, 'index.html');
     if (fs.existsSync(cand) && fs.statSync(cand).isFile()) return cand;
     const asDirIdx = safeFileUnder(ADMIN, cleanParts(inner.replace(/\/$/, '')).concat(['index.html']));
-    if (asDirIdx && fs.existsSync(asDirIdx) && fs.statSync(asDirIdx).isFile())
-      return asDirIdx;
+    if (asDirIdx && fs.existsSync(asDirIdx) && fs.statSync(asDirIdx).isFile()) return asDirIdx;
     return path.join(ADMIN, 'index.html');
   }
 
-  if (p === '/' || p === '') {
-    return path.join(ROOT, 'index.html');
-  }
+  if (p === '/' || p === '') return path.join(ROOT, 'index.html');
 
   const rel = p.replace(/^\//, '');
   const clientCand = safeFileUnder(ROOT, cleanParts(rel));
+  if (clientCand && fs.existsSync(clientCand) && fs.statSync(clientCand).isFile()) return clientCand;
 
-  if (clientCand && fs.existsSync(clientCand) && fs.statSync(clientCand).isFile()) {
-    return clientCand;
-  }
-
-  const dirIdxCand = safeFileUnder(
-    ROOT,
-    cleanParts(rel.replace(/\/$/, '')).concat(['index.html'])
-  );
-  if (dirIdxCand && fs.existsSync(dirIdxCand) && fs.statSync(dirIdxCand).isFile()) {
-    return dirIdxCand;
-  }
+  const dirIdxCand = safeFileUnder(ROOT, cleanParts(rel.replace(/\/$/, '')).concat(['index.html']));
+  if (dirIdxCand && fs.existsSync(dirIdxCand) && fs.statSync(dirIdxCand).isFile()) return dirIdxCand;
 
   return path.join(ROOT, 'index.html');
 }
 
-const server = http.createServer((req, res) => {
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    res.writeHead(405);
-    res.end();
-    return;
-  }
+function proxyToApi(req, res) {
+  const url = new URL(req.url, API_TARGET);
+  const lib = url.protocol === 'https:' ? https : http;
+  const chunks = [];
 
+  req.on('data', (c) => chunks.push(c));
+  req.on('end', () => {
+    const body = Buffer.concat(chunks);
+    const headers = { ...req.headers, host: url.host };
+    delete headers.connection;
+
+    const opts = {
+      hostname: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: url.pathname + url.search,
+      method: req.method,
+      headers,
+    };
+
+    const proxyReq = lib.request(opts, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', () => {
+      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(
+        JSON.stringify({
+          success: false,
+          message: 'API khong chay. Terminal: cd server && npm run dev',
+        })
+      );
+    });
+
+    if (body.length) proxyReq.write(body);
+    proxyReq.end();
+  });
+}
+
+function serveStatic(req, res) {
   const file = resolvePath(req.url || '/');
   if (!file || !underDir(path.normalize(file), ROOT)) {
     res.writeHead(404);
@@ -99,18 +123,38 @@ const server = http.createServer((req, res) => {
       res.end();
       return;
     }
-    const type = MIME[ext] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+    res.writeHead(200, {
+      'Content-Type': MIME[ext] || 'application/octet-stream',
+      'Cache-Control': 'no-store',
+    });
     if (req.method === 'HEAD') {
       res.end();
       return;
     }
     res.end(data);
   });
+}
+
+const server = http.createServer((req, res) => {
+  const u = req.url || '/';
+
+  if (u.startsWith('/api') || u.startsWith('/uploads')) {
+    return proxyToApi(req, res);
+  }
+
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405);
+    res.end();
+    return;
+  }
+
+  serveStatic(req, res);
 });
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(
-    '\n[thangtinhoc] preview (dual SPA)\n  Site:   http://127.0.0.1:' + PORT + '/\n  Admin:  http://127.0.0.1:' + PORT + '/admin/login\nNOT Vite preview / NOT npm serve.\nPort 4173 is Vite preview default — use ' + PORT + ' or PREVIEW_PORT=...\n(ctrl+c)\n'
+    '\n[preview] http://127.0.0.1:' + PORT + '/\n' +
+    '         http://127.0.0.1:' + PORT + '/admin/login\n' +
+    'API proxy -> ' + API_TARGET + ' (cd server && npm run dev)\n(ctrl+c)\n'
   );
 });
