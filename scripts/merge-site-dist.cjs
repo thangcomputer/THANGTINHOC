@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
@@ -19,9 +19,13 @@ if (!fs.existsSync(adminDist)) {
 }
 
 fs.rmSync(outDir, { recursive: true, force: true });
-fs.mkdirSync(path.join(outDir, "admin"), { recursive: true });
-
+fs.mkdirSync(outDir, { recursive: true });
 fs.cpSync(clientDist, outDir, { recursive: true });
 fs.cpSync(adminDist, path.join(outDir, "admin"), { recursive: true });
+
+const htaccess = path.join(root, "deploy", "apache", "site_dist.htaccess");
+if (fs.existsSync(htaccess)) {
+  fs.copyFileSync(htaccess, path.join(outDir, ".htaccess"));
+}
 
 console.log("[merge-site-dist] OK ->", outDir);

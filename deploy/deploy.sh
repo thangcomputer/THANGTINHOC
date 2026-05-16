@@ -21,7 +21,7 @@ ADMIN_DOMAIN="${ADMIN_DOMAIN:-admin.$DOMAIN}"
 APP_DIR="${APP_DIR:-/www/wwwroot/thangtinhoc}"
 PORT="${PORT:-5001}"
 API_URL="https://${DOMAIN}/api"
-CORS="https://${DOMAIN},https://${ADMIN_DOMAIN}"
+CORS="https://${DOMAIN},https://www.${DOMAIN}"
 
 if [ -z "$JWT_SECRET" ]; then
   JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')
@@ -82,22 +82,25 @@ npm ci 2>/dev/null || npm install
 npm run build
 cd ..
 
+echo "==> Merge site_dist (client + admin)..."
+node scripts/merge-site-dist.cjs
+
 echo "==> PM2..."
 pm2 delete thangtinhoc-api 2>/dev/null || true
 pm2 start deploy/ecosystem.config.cjs
 pm2 save
 
 if [ -d "/www/server/panel" ]; then
-  echo "==> aaPanel: Trang web -> Reverse proxy:"
-  echo "    /api     -> http://127.0.0.1:${PORT}"
-  echo "    /uploads -> http://127.0.0.1:${PORT}"
+  echo "==> aaPanel (Apache/Nginx):"
+  echo "    1) Website -> Thu muc web = ${APP_DIR}/site_dist"
+  echo "    2) Reverse proxy: /api -> http://127.0.0.1:${PORT}"
+  echo "    3) Reverse proxy: /uploads -> http://127.0.0.1:${PORT}"
+  echo "    4) Neu Apache: .htaccess da copy vao site_dist (rewrite /admin)"
+  echo "    5) Admin URL: https://${DOMAIN}/admin/login  (KHONG dung subdomain admin.)"
 else
   SITE_CONF="/etc/nginx/sites-available/thangtinhoc"
-  ADMIN_CONF="/etc/nginx/sites-available/thangtinhoc-admin"
   sed "s|__DOMAIN__|${DOMAIN}|g; s|__APP_DIR__|${APP_DIR}|g; s|__PORT__|${PORT}|g" deploy/nginx/site.conf.template > "$SITE_CONF"
-  sed "s|__ADMIN_DOMAIN__|${ADMIN_DOMAIN}|g; s|__APP_DIR__|${APP_DIR}|g" deploy/nginx/admin.conf.template > "$ADMIN_CONF"
   ln -sf "$SITE_CONF" /etc/nginx/sites-enabled/thangtinhoc 2>/dev/null || true
-  ln -sf "$ADMIN_CONF" /etc/nginx/sites-enabled/thangtinhoc-admin 2>/dev/null || true
   nginx -t && systemctl reload nginx
 fi
 
@@ -105,6 +108,6 @@ echo ""
 echo "=========================================="
 echo " DEPLOY THANH CONG!"
 echo " Website: https://${DOMAIN}"
-echo " Admin:   https://${ADMIN_DOMAIN}"
+echo " Admin:   https://${DOMAIN}/admin/login"
 echo " Test:    curl http://127.0.0.1:${PORT}/api/health"
 echo "=========================================="

@@ -1,21 +1,29 @@
 #!/bin/bash
-# Build lai client + admin (sau khi sua code hoac .env sai)
+# Build lai client + admin + site_dist (sau khi sua code)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-# .env.production trong repo da dat VITE_API_URL=/api (uu tien khi build)
 rm -f client/.env admin/.env 2>/dev/null || true
 
-rm -f client/dist/index.html client/dist/assets/*.js client/dist/assets/*.css 2>/dev/null || true
-rm -f admin/dist/index.html admin/dist/assets/*.js admin/dist/assets/*.css 2>/dev/null || true
-
-cd client && npm run build && cd ..
-cd admin && npm run build && cd ..
+echo "==> build:merged..."
+npm run build:merged
 
 if grep -rq "127.0.0.1" client/dist/assets/ 2>/dev/null; then
-    echo "CANH BAO: build van con 127.0.0.1 - kiem tra lai"
-    exit 1
+  echo "CANH BAO: client build van con 127.0.0.1"
+  exit 1
 fi
 
-echo "OK! Mo https://thangtinhoc.vn va Ctrl+Shift+R"
+if ! test -f site_dist/admin/index.html; then
+  echo "LOI: thieu site_dist/admin/index.html"
+  exit 1
+fi
+
+if ! grep -q 'src="/admin/assets/' site_dist/admin/index.html 2>/dev/null; then
+  echo "CANH BAO: admin index khong dung base /admin/ - kiem tra admin/vite.config.js"
+fi
+
+echo "OK! site_dist san sang."
+echo "  Website: https://thangtinhoc.vn/"
+echo "  Admin:   https://thangtinhoc.vn/admin/login"
+echo "Trong aaPanel dat Thu muc web = $ROOT/site_dist (KHONG phai client/dist)"
