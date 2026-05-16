@@ -54,13 +54,36 @@ app.use(globalLimiter);
 app.use(compression());
 
 // 5. CORS
-const allowedOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',')
-  : ['http://localhost:5173', 'http://localhost:5174'];
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const defaultDevOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:4288',
+  'http://127.0.0.1:4288',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+];
+for (const o of defaultDevOrigins) {
+  if (!allowedOrigins.includes(o)) allowedOrigins.push(o);
+}
+
+function isLocalDevOrigin(origin) {
+  if (process.env.NODE_ENV === 'production') return false;
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+}
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin) || isLocalDevOrigin(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
