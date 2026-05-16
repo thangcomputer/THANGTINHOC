@@ -11,6 +11,14 @@ function die(msg) {
   process.exit(1);
 }
 
+function copyHtaccess(srcRel, destRel) {
+  const src = path.join(root, "deploy", "apache", srcRel);
+  const dest = path.join(outDir, destRel);
+  if (!fs.existsSync(src)) die("[merge-site-dist] Missing " + src);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(src, dest);
+}
+
 if (!fs.existsSync(clientDist)) {
   die("[merge-site-dist] Missing client/dist. Run: npm run build --prefix client");
 }
@@ -23,12 +31,13 @@ fs.mkdirSync(outDir, { recursive: true });
 fs.cpSync(clientDist, outDir, { recursive: true });
 fs.cpSync(adminDist, path.join(outDir, "admin"), { recursive: true });
 
-const htaccess = path.join(root, "deploy", "apache", "site_dist.htaccess");
-const htaccessOut = path.join(outDir, ".htaccess");
-if (!fs.existsSync(htaccess)) {
-  die("[merge-site-dist] Missing deploy/apache/site_dist.htaccess");
-}
-fs.copyFileSync(htaccess, htaccessOut);
+copyHtaccess("site_dist.htaccess", ".htaccess");
+copyHtaccess("admin.htaccess", "admin/.htaccess");
+
+const adminIndex = path.join(outDir, "admin", "index.html");
+const loginDir = path.join(outDir, "admin", "login");
+fs.mkdirSync(loginDir, { recursive: true });
+fs.copyFileSync(adminIndex, path.join(loginDir, "index.html"));
 
 console.log("[merge-site-dist] OK ->", outDir);
-console.log("[merge-site-dist] .htaccess copied for Apache SPA rewrite");
+console.log("[merge-site-dist] .htaccess + admin/.htaccess + admin/login/index.html");

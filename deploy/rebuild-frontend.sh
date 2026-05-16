@@ -24,6 +24,16 @@ if ! test -f site_dist/.htaccess; then
   exit 1
 fi
 
+if ! test -f site_dist/admin/.htaccess; then
+  echo "LOI: thieu site_dist/admin/.htaccess"
+  exit 1
+fi
+
+if ! test -f site_dist/admin/login/index.html; then
+  echo "LOI: thieu site_dist/admin/login/index.html"
+  exit 1
+fi
+
 if ! grep -q 'src="/admin/assets/' site_dist/admin/index.html 2>/dev/null; then
   echo "CANH BAO: admin index khong dung base /admin/ - kiem tra admin/vite.config.js"
 fi

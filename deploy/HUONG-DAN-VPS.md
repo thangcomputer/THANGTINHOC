@@ -33,8 +33,18 @@ bash deploy/rebuild-frontend.sh
    - `/api` → `http://127.0.0.1:5001` (port trong `deploy/deploy.conf`)
    - `/uploads` → `http://127.0.0.1:5001`
 3. Bat **Allow .htaccess** / rewrite (Apache: `mod_rewrite` on)
-4. File `site_dist/.htaccess` duoc tao tu `deploy/apache/site_dist.htaccess` khi chay `npm run build:merged`
-5. Reload web server, xoa cache trinh duyet (Ctrl+Shift+R)
+4. File rewrite (sau `bash deploy/rebuild-frontend.sh`):
+   - `site_dist/.htaccess`
+   - `site_dist/admin/.htaccess`
+   - `site_dist/admin/login/index.html` (fallback neu rewrite tat)
+5. Neu van 404, chay tay:
+   ```bash
+   cp deploy/apache/site_dist.htaccess site_dist/.htaccess
+   cp deploy/apache/admin.htaccess site_dist/admin/.htaccess
+   mkdir -p site_dist/admin/login && cp site_dist/admin/index.html site_dist/admin/login/index.html
+   ```
+6. aaPanel: **Allow .htaccess** / bat **Rewrite** cho site
+7. Reload web server, Ctrl+Shift+R
 
 ## Dang nhap admin
 - Email: `admin@thangtinhoc.vn`
