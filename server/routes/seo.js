@@ -109,7 +109,8 @@ router.get('/api/seo/post/:slug', async (req, res) => {
     if (!post) return res.status(404).json({ success: false });
 
     const baseUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
-    const postUrl = `${baseUrl}/blog/${post.slug}`;
+    const postUrl = (post.canonicalUrl && String(post.canonicalUrl).trim())
+      || `${baseUrl}/blog/${post.slug}`;
 
     // Parse FAQ from content (tìm section FAQ trong HTML)
     const faqItems = [];
@@ -192,12 +193,13 @@ router.get('/api/seo/post/:slug', async (req, res) => {
       ],
     };
 
-    // Meta tags cho Open Graph + Twitter Cards
     const meta = {
       title: post.metaTitle || post.title,
       description: post.metaDescription || post.excerpt || '',
       image: post.thumbnail || '',
       url: postUrl,
+      noIndex: !!post.noIndex,
+      canonical: postUrl,
       type: 'article',
       author: post.author?.fullName || 'Thắng Tin Học',
       publishedTime: post.createdAt?.toISOString(),

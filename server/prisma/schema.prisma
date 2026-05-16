@@ -142,6 +142,8 @@ model Post {
   focusKeyword    String?
   tags            String?  // JSON array: ["tag1","tag2"]
   tableOfContents String?  // JSON array: [{id,text,level}]
+  noIndex         Boolean  @default(false)
+  canonicalUrl    String?
   categoryId      Int
   authorId        Int
   createdAt       DateTime @default(now())

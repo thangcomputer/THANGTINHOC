@@ -97,16 +97,34 @@ export default function BlogDetail() {
           if (!el) { el = document.createElement('meta'); el.setAttribute(name.startsWith('og:') || name.startsWith('article:') ? 'property' : 'name', name); document.head.appendChild(el); }
           el.content = content;
         };
-        setMeta('description', p.metaDescription || p.excerpt || '');
+        const desc = p.metaDescription || p.excerpt || '';
+        const canonical = (p.canonicalUrl && String(p.canonicalUrl).trim()) || window.location.href.split('#')[0];
+        setMeta('description', desc);
         setMeta('keywords', (() => { try { return JSON.parse(p.tags || '[]').join(', '); } catch { return ''; } })());
+        setMeta('robots', p.noIndex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large');
         setMeta('og:title', p.metaTitle || p.title);
-        setMeta('og:description', p.metaDescription || p.excerpt || '');
+        setMeta('og:description', desc);
         setMeta('og:type', 'article');
-        setMeta('og:url', window.location.href);
-        if (p.thumbnail) setMeta('og:image', p.thumbnail);
+        setMeta('og:url', canonical);
+        if (p.thumbnail) {
+          setMeta('og:image', p.thumbnail);
+          setMeta('twitter:card', 'summary_large_image');
+          setMeta('twitter:image', p.thumbnail);
+        } else {
+          setMeta('twitter:card', 'summary');
+        }
+        setMeta('twitter:title', p.metaTitle || p.title);
+        setMeta('twitter:description', desc);
         setMeta('article:published_time', p.createdAt);
         setMeta('article:modified_time', p.updatedAt);
         setMeta('article:section', p.category?.name || '');
+        let linkCanon = document.querySelector('link[rel="canonical"]');
+        if (!linkCanon) {
+          linkCanon = document.createElement('link');
+          linkCanon.rel = 'canonical';
+          document.head.appendChild(linkCanon);
+        }
+        linkCanon.href = canonical;
 
         // ── SEO: Schema.org JSON-LD (Article + FAQ + Breadcrumb) ──
         api.get(`/seo/post/${slug}`).then(seoRes => {
@@ -140,6 +158,7 @@ export default function BlogDetail() {
     return () => {
       document.title = 'Thắng Tin Học - Trung Tâm Đào Tạo Tin Học';
       document.querySelectorAll('script[data-seo-schema]').forEach(el => el.remove());
+      document.querySelector('link[rel="canonical"]')?.remove();
     };
   }, [slug]);
 

@@ -4,7 +4,7 @@ export function getClientSiteUrl() {
   if (import.meta.env.DEV) return 'http://localhost:5173';
   if (typeof window !== 'undefined' && window.location?.origin) {
     const { origin, port } = window.location;
-    if (port === '4288' || port === '4173') return 'http://127.0.0.1:5173';
+    if (port === '4288' || port === '5173') return 'http://127.0.0.1:5173';
     return origin.replace(/\/admin\/?$/, '') || origin;
   }
   return '';

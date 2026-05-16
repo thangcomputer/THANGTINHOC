@@ -11,142 +11,11 @@ import { uploadAdminFile } from '../lib/uploadFile';
 import Loading from '../components/Loading';
 import MediaPicker from '../components/MediaPicker';
 import { clientPath } from '../lib/clientUrl';
-
-const slugify = (text) => {
-  return text.toString().toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/--+/g, '-')
-    .trim();
-};
-
-// ── SEO Analysis Engine ──
-function analyzeSEO(form) {
-  const checks = [];
-  const kw = (form.focusKeyword || '').toLowerCase().trim();
-  const title = form.title || '';
-  const metaTitle = form.metaTitle || title;
-  const metaDesc = form.metaDescription || form.excerpt || '';
-  const content = form.content || '';
-  const slug = form.slug || '';
-  const contentLower = content.toLowerCase();
-  const titleLower = title.toLowerCase();
-
-  if (!kw) {
-    checks.push({ type: 'warning', text: 'Chưa đặt từ khóa trọng tâm', tip: 'Nhập từ khóa chính để phân tích SEO' });
-  } else {
-    if (titleLower.includes(kw)) {
-      checks.push({ type: 'good', text: 'Từ khóa có trong tiêu đề ✓' });
-    } else {
-      checks.push({ type: 'error', text: 'Từ khóa chưa có trong tiêu đề', tip: `Thêm "${kw}" vào tiêu đề bài viết` });
-    }
-    const kwSlug = slugify(kw);
-    if (slug.includes(kwSlug)) {
-      checks.push({ type: 'good', text: 'Từ khóa có trong URL (slug) ✓' });
-    } else {
-      checks.push({ type: 'warning', text: 'Từ khóa chưa có trong URL', tip: `Nên thêm "${kwSlug}" vào slug` });
-    }
-    if (metaDesc.toLowerCase().includes(kw)) {
-      checks.push({ type: 'good', text: 'Từ khóa có trong Meta Description ✓' });
-    } else {
-      checks.push({ type: 'warning', text: 'Từ khóa chưa có trong Meta Description', tip: 'Thêm từ khóa vào mô tả meta để tăng SEO' });
-    }
-    if (contentLower.includes(kw)) {
-      const count = (contentLower.match(new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
-      const density = content.length > 0 ? ((count * kw.length) / content.length * 100).toFixed(1) : 0;
-      if (density > 0 && density < 3) {
-        checks.push({ type: 'good', text: `Mật độ từ khóa: ${density}% (${count} lần) ✓` });
-      } else if (density >= 3) {
-        checks.push({ type: 'warning', text: `Mật độ từ khóa quá cao: ${density}%`, tip: 'Giảm bớt số lần lặp từ khóa (nên 0.5-2.5%)' });
-      } else {
-        checks.push({ type: 'warning', text: 'Từ khóa xuất hiện quá ít trong nội dung', tip: 'Thêm từ khóa tự nhiên vào bài viết' });
-      }
-    } else {
-      checks.push({ type: 'error', text: 'Từ khóa chưa xuất hiện trong nội dung', tip: 'Hãy đề cập từ khóa trong bài viết' });
-    }
-    const firstPara = content.split('\n')[0]?.toLowerCase() || '';
-    if (firstPara.includes(kw)) {
-      checks.push({ type: 'good', text: 'Từ khóa trong đoạn mở đầu ✓' });
-    } else {
-      checks.push({ type: 'warning', text: 'Từ khóa chưa có trong đoạn mở đầu', tip: 'Nên đề cập từ khóa trong 1-2 câu đầu' });
-    }
-  }
-
-  if (metaTitle.length === 0) {
-    checks.push({ type: 'warning', text: 'Chưa có Meta Title', tip: 'Viết meta title 50-60 ký tự' });
-  } else if (metaTitle.length < 30) {
-    checks.push({ type: 'warning', text: `Meta Title quá ngắn (${metaTitle.length} ký tự)`, tip: 'Nên từ 50-60 ký tự' });
-  } else if (metaTitle.length <= 60) {
-    checks.push({ type: 'good', text: `Meta Title tốt (${metaTitle.length}/60 ký tự) ✓` });
-  } else {
-    checks.push({ type: 'warning', text: `Meta Title quá dài (${metaTitle.length}/60 ký tự)`, tip: 'Google sẽ cắt bớt nếu trên 60 ký tự' });
-  }
-
-  if (metaDesc.length === 0) {
-    checks.push({ type: 'warning', text: 'Chưa có Meta Description', tip: 'Viết 120-160 ký tự mô tả hấp dẫn' });
-  } else if (metaDesc.length < 100) {
-    checks.push({ type: 'warning', text: `Meta Description ngắn (${metaDesc.length}/160 ký tự)`, tip: 'Nên từ 120-160 ký tự' });
-  } else if (metaDesc.length <= 160) {
-    checks.push({ type: 'good', text: `Meta Description tốt (${metaDesc.length}/160 ký tự) ✓` });
-  } else {
-    checks.push({ type: 'warning', text: `Meta Description dài (${metaDesc.length}/160 ký tự)`, tip: 'Google sẽ cắt bớt sau 160 ký tự' });
-  }
-
-  const wordCount = content.trim().split(/\s+/).length;
-  if (wordCount < 100) {
-    checks.push({ type: 'error', text: `Nội dung quá ngắn (${wordCount} từ)`, tip: 'Viết ít nhất 300 từ để SEO tốt' });
-  } else if (wordCount < 300) {
-    checks.push({ type: 'warning', text: `Nội dung hơi ngắn (${wordCount} từ)`, tip: 'Nên viết 300+ từ' });
-  } else {
-    checks.push({ type: 'good', text: `Độ dài nội dung tốt (${wordCount} từ) ✓` });
-  }
-
-  const hasH2 = /^##\s/m.test(content) || /<h[23]/i.test(content);
-  if (hasH2) {
-    checks.push({ type: 'good', text: 'Có heading phụ (H2/H3) ✓' });
-  } else {
-    checks.push({ type: 'warning', text: 'Chưa có heading phụ (H2/H3)', tip: 'Thêm ## Heading để cấu trúc bài viết' });
-  }
-
-  const hasImage = form.thumbnail || /!\[.*\]\(.*\)/m.test(content) || /<img/i.test(content);
-  if (hasImage) {
-    checks.push({ type: 'good', text: 'Có ảnh minh họa ✓' });
-  } else {
-    checks.push({ type: 'warning', text: 'Chưa có ảnh minh họa', tip: 'Thêm ảnh bìa hoặc ảnh trong bài để tăng tương tác' });
-  }
-
-  if (form.excerpt && form.excerpt.length > 20) {
-    checks.push({ type: 'good', text: 'Có tóm tắt bài viết ✓' });
-  } else {
-    checks.push({ type: 'warning', text: 'Chưa có tóm tắt', tip: 'Viết đoạn trích dẫn ngắn cho danh sách blog' });
-  }
-
-  const good = checks.filter(c => c.type === 'good').length;
-  const total = checks.length;
-  const score = total > 0 ? Math.round((good / total) * 100) : 0;
-  return { checks, score, good, total };
-}
-
-function generateTOC(content) {
-  const headingRegex = /^(#{2,4})\s+(.+)$/gm;
-  const toc = [];
-  let match;
-  while ((match = headingRegex.exec(content)) !== null) {
-    const level = match[1].length;
-    const text = match[2].trim();
-    const id = slugify(text);
-    toc.push({ id, text, level });
-  }
-  const htmlRegex = /<h([2-4])[^>]*>(.*?)<\/h[2-4]>/gi;
-  while ((match = htmlRegex.exec(content)) !== null) {
-    const level = parseInt(match[1]);
-    const text = match[2].replace(/<[^>]*>/g, '').trim();
-    const id = slugify(text);
-    toc.push({ id, text, level });
-  }
-  return toc;
-}
+import { blogPostUrl } from '../lib/siteUrl';
+import {
+  slugify, normalizeSlug, generateTOC, analyzeSEO,
+  buildSeoDefaults, validatePostForm, countWords,
+} from '../lib/postSeo';
 
 export default function PostForm() {
   const { id } = useParams();
@@ -341,6 +210,8 @@ export default function PostForm() {
           focusKeyword: data.focusKeyword || '',
           tags: data.tags || '[]',
           tableOfContents: data.tableOfContents || '[]',
+          noIndex: !!data.noIndex,
+          canonicalUrl: data.canonicalUrl || '',
         });
       }).finally(() => setLoading(false));
     }
@@ -364,39 +235,58 @@ export default function PostForm() {
 
   const toc = useMemo(() => generateTOC(form.content), [form.content]);
   const seo = useMemo(() => analyzeSEO(form), [form]);
+  const seoDefaults = useMemo(() => buildSeoDefaults(form), [form]);
 
-  const persistPost = useCallback(async ({ publish, redirect = true }) => {
-    if (!form.title || !form.slug || !form.categoryId) {
-      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+  const persistPost = useCallback(async ({ willPublish, redirect = true }) => {
+    const errors = validatePostForm(form);
+    if (errors.length) {
+      toast.error(errors.join(' · '));
       return false;
+    }
+    const seoFill = buildSeoDefaults(form);
+    const publish = !!willPublish;
+    if (publish && seo.score < 40) {
+      const ok = window.confirm(
+        `Điểm SEO ${seo.score}/100 còn thấp. Vẫn xuất bản bài viết?`
+      );
+      if (!ok) return false;
     }
     setSaving(true);
     try {
       const payload = {
         ...form,
-        isPublished: publish ? form.isPublished : false,
+        slug: normalizeSlug(form.slug) || normalizeSlug(form.title),
+        metaTitle: (form.metaTitle || '').trim() || seoFill.metaTitle,
+        metaDescription: (form.metaDescription || '').trim() || seoFill.metaDescription,
+        isPublished: publish,
         tableOfContents: JSON.stringify(toc),
       };
       if (id) await api.put(`/posts/${id}`, payload);
       else await api.post('/posts', payload);
-      toast.success(publish ? 'Lưu thành công' : 'Đã lưu nháp (Ctrl+S)');
+      toast.success(publish ? 'Đã lưu và xuất bản bài viết' : 'Đã lưu nháp (Ctrl+S)');
       if (redirect) navigate('/posts');
       return true;
-    } catch {
-      toast.error('Lỗi khi lưu');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Lỗi khi lưu');
       return false;
     } finally {
       setSaving(false);
     }
-  }, [form, toc, id, navigate]);
+  }, [form, toc, id, navigate, seo.score]);
 
   const handleSave = async (e) => {
     e.preventDefault();
-    await persistPost({ publish: true, redirect: true });
+    let publish = !!form.isPublished;
+    if (!publish) {
+      publish = window.confirm(
+        'Bài chưa bật "Công khai". Bấm OK để xuất bản ngay, Hủy để chỉ lưu nháp.'
+      );
+    }
+    await persistPost({ willPublish: publish, redirect: true });
   };
 
   const handleSaveDraft = useCallback(() => {
-    persistPost({ publish: false, redirect: false });
+    persistPost({ willPublish: false, redirect: false });
   }, [persistPost]);
 
   useEffect(() => {
@@ -1055,8 +945,11 @@ export default function PostForm() {
             </button>
           )}
 
+          <button type="button" onClick={handleSaveDraft} className="btn btn-secondary" disabled={saving}>
+            {saving ? <Loader2 size={16} className="spinner" /> : 'Lưu nháp'}
+          </button>
           <button onClick={handleSave} className="btn btn-primary" disabled={saving}>
-            {saving ? <><Loader2 size={16} className="spinner" /> Đang lưu...</> : <><Save size={18} /> Lưu Bài Viết</>}
+            {saving ? <><Loader2 size={16} className="spinner" /> Đang lưu...</> : <><Save size={18} /> {form.isPublished ? 'Lưu & Xuất bản' : 'Lưu bài viết'}</>}
           </button>
         </div>
       </div>
@@ -1120,9 +1013,13 @@ export default function PostForm() {
               <div className="form-group">
                 <label>Slug *</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  <Globe size={12} /> thangtin.com/blog/<strong style={{ color: 'var(--primary)' }}>{form.slug || '...'}</strong>
+                  <Globe size={12} /> {blogPostUrl(form.slug).replace(/^https?:\/\//, '')}
                 </div>
-                <input type="text" className="form-control" value={form.slug} required onChange={e => setForm({ ...form, slug: e.target.value })} />
+                <input
+                  type="text" className="form-control" value={form.slug} required
+                  onChange={e => setForm({ ...form, slug: e.target.value })}
+                  onBlur={e => setForm({ ...form, slug: normalizeSlug(e.target.value) || form.slug })}
+                />
               </div>
               <div className="form-group">
                 <label>Tóm Tắt</label>
@@ -1186,7 +1083,7 @@ export default function PostForm() {
                   </button>
 
                   <div style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    {(form.content || '').replace(/<[^>]*>/g, '').trim().split(/\s+/).filter(Boolean).length} từ
+                    {countWords(form.content)} từ
                   </div>
                 </div>
 
@@ -1234,6 +1131,24 @@ export default function PostForm() {
                   </small>
                 </div>
 
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  style={{ alignSelf: 'flex-start' }}
+                  onClick={() => {
+                    const d = buildSeoDefaults(form);
+                    setForm((f) => ({
+                      ...f,
+                      metaTitle: d.metaTitle,
+                      metaDescription: d.metaDescription || f.metaDescription,
+                      slug: f.slug || normalizeSlug(f.focusKeyword || f.title),
+                    }));
+                    toast.success('Đã điền Meta từ tiêu đề & tóm tắt');
+                  }}
+                >
+                  Tự động điền Meta từ tiêu đề
+                </button>
+
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                     Meta Title
@@ -1261,9 +1176,9 @@ export default function PostForm() {
                     Meta Description
                     <span style={{
                       fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: '4px',
-                      background: (form.metaDescription).length <= 160 ? '#10b98120' : '#f59e0b20',
-                      color: (form.metaDescription).length <= 160 ? '#10b981' : '#f59e0b',
-                    }}>{form.metaDescription.length}/160</span>
+                      background: (form.metaDescription || form.excerpt || '').length <= 160 ? '#10b98120' : '#f59e0b20',
+                      color: (form.metaDescription || form.excerpt || '').length <= 160 ? '#10b981' : '#f59e0b',
+                    }}>{(form.metaDescription || form.excerpt || '').length}/160</span>
                   </label>
                   <textarea className="form-control" rows="3" value={form.metaDescription}
                     onChange={e => setForm({ ...form, metaDescription: e.target.value })}
@@ -1272,8 +1187,8 @@ export default function PostForm() {
                   <div style={{ height: '3px', borderRadius: '2px', marginTop: '4px', background: 'var(--border)', overflow: 'hidden' }}>
                     <div style={{
                       height: '100%', borderRadius: '2px', transition: 'width 0.3s',
-                      width: `${Math.min(100, (form.metaDescription.length / 160) * 100)}%`,
-                      background: form.metaDescription.length <= 160 ? '#10b981' : '#ef4444',
+                      width: `${Math.min(100, ((form.metaDescription || form.excerpt || '').length / 160) * 100)}%`,
+                      background: (form.metaDescription || form.excerpt || '').length <= 160 ? '#10b981' : '#ef4444',
                     }} />
                   </div>
                 </div>
@@ -1287,7 +1202,7 @@ export default function PostForm() {
                     {(form.metaTitle || form.title || 'Tiêu đề bài viết...').slice(0, 60)}{(form.metaTitle || form.title || '').length > 60 ? '...' : ''}
                   </div>
                   <div style={{ fontSize: '0.78rem', color: '#006621', marginBottom: '2px', fontFamily: 'Arial, sans-serif' }}>
-                    thangtin.com/blog/{form.slug || '...'}
+                    {blogPostUrl(form.slug).replace(/^https?:\/\//, '')}
                   </div>
                   <div style={{ fontSize: '0.82rem', color: '#4d5156', lineHeight: 1.45, fontFamily: 'Arial, sans-serif' }}>
                     {(form.metaDescription || form.excerpt || 'Mô tả sẽ hiển thị ở đây khi bài viết xuất hiện trên Google...').slice(0, 160)}{(form.metaDescription || form.excerpt || '').length > 160 ? '...' : ''}
@@ -1414,10 +1329,9 @@ export default function PostForm() {
                     if (!file) return;
                     setUploadingThumb(true);
                     try {
-                      const fd = new FormData();
-                      fd.append('image', file);
-                      const res = await api.post('/upload', fd);
-                      setForm(f => ({ ...f, thumbnail: res.data.data.url }));
+                      const url = await uploadAdminFile(file);
+                      if (!url) throw new Error('No URL');
+                      setForm(f => ({ ...f, thumbnail: url }));
                       toast.success('Đã tải ảnh bìa!');
                     } catch { toast.error('Lỗi khi tải ảnh'); }
                     finally { setUploadingThumb(false); }

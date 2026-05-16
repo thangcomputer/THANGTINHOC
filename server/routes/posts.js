@@ -4,6 +4,32 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
+function normalizeSlug(raw) {
+  return String(raw || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function pickSeoFields(body) {
+  const title = String(body.title || '').trim();
+  const excerpt = String(body.excerpt || '').trim();
+  const metaTitle = String(body.metaTitle || '').trim() || title.slice(0, 60);
+  const metaDescription = String(body.metaDescription || '').trim() || excerpt.slice(0, 160);
+  const canonicalUrl = String(body.canonicalUrl || '').trim() || null;
+  return {
+    metaTitle: metaTitle || null,
+    metaDescription: metaDescription || null,
+    focusKeyword: String(body.focusKeyword || '').trim() || null,
+    canonicalUrl,
+    noIndex: !!body.noIndex,
+  };
+}
+
 // Admin: Get all posts
 router.get('/admin/all', authenticate, authorize('admin'), async (req, res) => {
   try {
@@ -79,20 +105,32 @@ router.get('/:slug', async (req, res) => {
 // Admin: Create post
 router.post('/', authenticate, authorize('admin'), async (req, res) => {
   try {
-    const { title, slug, excerpt, content, thumbnail, isPublished, isFeatured, categoryId, metaTitle, metaDescription, focusKeyword, tags, tableOfContents } = req.body;
+    const { title, slug, excerpt, content, thumbnail, isPublished, isFeatured, categoryId, tags, tableOfContents } = req.body;
+    const finalSlug = normalizeSlug(slug || title);
+    if (!finalSlug) {
+      return res.status(400).json({ success: false, message: 'Slug không hợp lệ' });
+    }
     const post = await prisma.post.create({
       data: {
-        title, slug: slug || title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
-        excerpt, content, thumbnail,
-        isPublished: !!isPublished, isFeatured: !!isFeatured,
-        metaTitle: metaTitle || null, metaDescription: metaDescription || null,
-        focusKeyword: focusKeyword || null,
-        tags: tags || null, tableOfContents: tableOfContents || null,
-        categoryId: parseInt(categoryId), authorId: req.user.id,
+        title: String(title).trim(),
+        slug: finalSlug,
+        excerpt: excerpt || null,
+        content,
+        thumbnail: thumbnail || null,
+        isPublished: !!isPublished,
+        isFeatured: !!isFeatured,
+        ...pickSeoFields(req.body),
+        tags: tags || null,
+        tableOfContents: tableOfContents || null,
+        categoryId: parseInt(categoryId, 10),
+        authorId: req.user.id,
       },
     });
     res.status(201).json({ success: true, data: post });
   } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(400).json({ success: false, message: 'Slug đã tồn tại, hãy đổi slug khác' });
+    }
     console.error(err);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
@@ -101,20 +139,32 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
 // Admin: Update post
 router.put('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
-    const { title, slug, excerpt, content, thumbnail, isPublished, isFeatured, categoryId, metaTitle, metaDescription, focusKeyword, tags, tableOfContents } = req.body;
+    const { title, slug, excerpt, content, thumbnail, isPublished, isFeatured, categoryId, tags, tableOfContents } = req.body;
+    const finalSlug = normalizeSlug(slug || title);
+    if (!finalSlug) {
+      return res.status(400).json({ success: false, message: 'Slug không hợp lệ' });
+    }
     const post = await prisma.post.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id: parseInt(req.params.id, 10) },
       data: {
-        title, slug, excerpt, content, thumbnail,
-        isPublished: !!isPublished, isFeatured: !!isFeatured,
-        metaTitle: metaTitle || null, metaDescription: metaDescription || null,
-        focusKeyword: focusKeyword || null,
-        tags: tags || null, tableOfContents: tableOfContents || null,
-        categoryId: parseInt(categoryId),
+        title: String(title).trim(),
+        slug: finalSlug,
+        excerpt: excerpt || null,
+        content,
+        thumbnail: thumbnail || null,
+        isPublished: !!isPublished,
+        isFeatured: !!isFeatured,
+        ...pickSeoFields(req.body),
+        tags: tags || null,
+        tableOfContents: tableOfContents || null,
+        categoryId: parseInt(categoryId, 10),
       },
     });
     res.json({ success: true, data: post });
   } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(400).json({ success: false, message: 'Slug đã tồn tại, hãy đổi slug khác' });
+    }
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 });

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Post" ADD COLUMN "noIndex" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Post" ADD COLUMN "canonicalUrl" TEXT;
