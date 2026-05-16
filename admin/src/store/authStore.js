@@ -1,7 +1,17 @@
 import { create } from 'zustand';
 
+function loadStoredUser() {
+  try {
+    const raw = localStorage.getItem('admin_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    localStorage.removeItem('admin_user');
+    return null;
+  }
+}
+
 const useAuthStore = create((set) => ({
-  user: JSON.parse(localStorage.getItem('admin_user') || 'null'),
+  user: loadStoredUser(),
   token: localStorage.getItem('admin_token') || null,
   isAuthenticated: !!localStorage.getItem('admin_token'),
 

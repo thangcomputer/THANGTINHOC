@@ -59,6 +59,15 @@ async function createUserSession(userId, deviceId, ipAddress, userAgent) {
   return { session, sessionWarning };
 }
 
+
+async function resolveDeviceIdForAuth(req, sessionId, userId) {
+  const fromReq = getDeviceId(req);
+  if (fromReq) return fromReq;
+  if (!sessionId || !userId) return null;
+  const session = await prisma.userSession.findUnique({ where: { id: sessionId } });
+  if (session && session.userId === userId) return session.deviceId;
+  return null;
+}
 async function validateUserSession(sessionId, userId, deviceId, ipAddress) {
   const session = await prisma.userSession.findUnique({ where: { id: sessionId } });
 
@@ -77,7 +86,8 @@ async function validateUserSession(sessionId, userId, deviceId, ipAddress) {
     throw err;
   }
 
-  if (session.deviceId !== deviceId) {
+    const effectiveDeviceId = deviceId || session.deviceId;
+  if (session.deviceId !== effectiveDeviceId) {
     const err = new Error('SESSION_DEVICE_MSG');
     err.status = 401;
     err.code = 'SESSION_DEVICE';
@@ -114,6 +124,7 @@ function localizeSessionWarning(code) {
 }
 
 module.exports = {
+  resolveDeviceIdForAuth,
   IDLE_MS,
   getClientIp,
   getDeviceId,

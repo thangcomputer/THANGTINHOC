@@ -41,21 +41,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+const SESSION_LOGOUT_CODES = new Set([
+  'SESSION_IDLE',
+  'SESSION_DEVICE',
+  'SESSION_INVALID',
+  'SESSION_IP',
+]);
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     const status = err.response?.status;
     const code = err.response?.data?.code;
-    if (status === 401 || status === 403) {
+    const hadToken = !!err.config?.headers?.Authorization;
+    if (hadToken && (status === 401 || status === 403) && SESSION_LOGOUT_CODES.has(code)) {
       const msg = err.response?.data?.message;
-      if (code === 'SESSION_IDLE' || code === 'SESSION_DEVICE' || code === 'SESSION_INVALID' || code === 'SESSION_IP' || code === 'IP_IN_USE') {
-        useAuthStore.getState().logout();
-        if (msg) alert(msg);
-        window.location.href = loginPageHref();
-      } else if (status === 401) {
-        useAuthStore.getState().logout();
-        window.location.href = loginPageHref();
-      }
+      useAuthStore.getState().logout();
+      if (msg) alert(msg);
+      window.location.href = loginPageHref();
     }
     return Promise.reject(err);
   }

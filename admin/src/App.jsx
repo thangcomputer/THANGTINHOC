@@ -19,6 +19,7 @@ import useAuthStore from './store/authStore';
 import { useSecurityProtection } from './lib/useSecurityProtection';
 import { useIdleLogout } from './lib/useIdleLogout';
 import Loading from './components/Loading';
+import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -56,6 +57,7 @@ export default function App() {
   useSecurityProtection();
   useIdleLogout();
   return (
+    <ErrorBoundary>
     <BrowserRouter basename={basename}>
       <Toaster position="bottom-right" />
       <Routes>
@@ -83,5 +85,6 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }

@@ -5,6 +5,7 @@ const {
   getDeviceId,
   validateUserSession,
   localizeSessionError,
+  resolveDeviceIdForAuth,
 } = require('../lib/session');
 
 const generateToken = (userId, role, sessionId) => {
@@ -21,14 +22,6 @@ const authenticate = async (req, res, next) => {
     return res.status(401).json({ success: false, message: 'No token provided' });
   }
   const token = authHeader.split(' ')[1];
-  const deviceId = getDeviceId(req);
-  if (!deviceId) {
-    return res.status(401).json({
-      success: false,
-      code: 'DEVICE_REQUIRED',
-      message: 'Thiếu mã thiết bị. Vui lòng tải lại trang và đăng nhập lại.',
-    });
-  }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -49,6 +42,15 @@ const authenticate = async (req, res, next) => {
     }
     if (!user.isActive) {
       return res.status(403).json({ success: false, message: 'Tai khoan da bi khoa' });
+    }
+
+    const deviceId = await resolveDeviceIdForAuth(req, decoded.sid, user.id);
+    if (!deviceId) {
+      return res.status(401).json({
+        success: false,
+        code: 'DEVICE_REQUIRED',
+        message: 'Thiếu mã thiết bị. Vui lòng tải lại trang và đăng nhập lại.',
+      });
     }
 
     const ip = getClientIp(req);
