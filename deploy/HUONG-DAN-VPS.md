@@ -14,16 +14,38 @@ curl -s https://thangtinhoc.edu.vn/admin/login | grep -o 'src="[^"]*"'
 # Sai neu thay: src="/assets/....js"
 ```
 
-## Cap nhat sau khi git pull
+## Cap nhat web = GitHub (QUAN TRONG)
+
+**Push len GitHub khong tu dong len web.** Phai chay tren VPS:
+
 ```bash
 cd /www/wwwroot/thangtinhoc   # hoac APP_DIR cua ban
+bash deploy/update-production.sh
+```
+
+Hoac tung buoc:
+
+```bash
+cd /www/wwwroot/thangtinhoc
 git pull origin main
+
+# Google login (them 1 lan neu chua co)
+nano server/.env
+# GOOGLE_CLIENT_ID=472584566291-hh7r4rpo8tedqvfb10qgpv27a71a3hds.apps.googleusercontent.com
 
 cd server && npm ci --omit=dev && npx prisma migrate deploy
 pm2 restart thangtinhoc-api
 
 cd ..
 bash deploy/rebuild-frontend.sh
+```
+
+Sau do trinh duyet: **Ctrl+Shift+R** (hard refresh).
+
+Kiem tra da pull dung commit:
+```bash
+git log -1 --oneline
+# Phai thay: dbaf741 hoac moi hon
 ```
 
 ## aaPanel (Apache) — bat buoc
