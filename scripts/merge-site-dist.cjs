@@ -24,8 +24,11 @@ fs.cpSync(clientDist, outDir, { recursive: true });
 fs.cpSync(adminDist, path.join(outDir, "admin"), { recursive: true });
 
 const htaccess = path.join(root, "deploy", "apache", "site_dist.htaccess");
-if (fs.existsSync(htaccess)) {
-  fs.copyFileSync(htaccess, path.join(outDir, ".htaccess"));
+const htaccessOut = path.join(outDir, ".htaccess");
+if (!fs.existsSync(htaccess)) {
+  die("[merge-site-dist] Missing deploy/apache/site_dist.htaccess");
 }
+fs.copyFileSync(htaccess, htaccessOut);
 
 console.log("[merge-site-dist] OK ->", outDir);
+console.log("[merge-site-dist] .htaccess copied for Apache SPA rewrite");

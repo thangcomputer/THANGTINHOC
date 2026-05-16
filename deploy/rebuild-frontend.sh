@@ -19,6 +19,11 @@ if ! test -f site_dist/admin/index.html; then
   exit 1
 fi
 
+if ! test -f site_dist/.htaccess; then
+  echo "LOI: thieu site_dist/.htaccess (Apache se 404 /admin/login)"
+  exit 1
+fi
+
 if ! grep -q 'src="/admin/assets/' site_dist/admin/index.html 2>/dev/null; then
   echo "CANH BAO: admin index khong dung base /admin/ - kiem tra admin/vite.config.js"
 fi
