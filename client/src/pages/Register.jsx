@@ -69,11 +69,10 @@ export default function Register() {
       <div className="auth-card">
         <div className="auth-brand">
           {siteLogo ? (
-            <img src={siteLogo} alt={siteName} style={{ height: '40px', objectFit: 'contain' }} />
+            <img src={siteLogo} alt={siteName} className="auth-brand-logo" />
           ) : (
             <div className="brand-icon"><BookOpen size={22} /></div>
           )}
-          <span>{siteName}</span>
         </div>
         <h1 className="auth-title">Tạo Tài Khoản Mới</h1>
         <p className="auth-subtitle">Đăng ký để bắt đầu hành trình học tập</p>

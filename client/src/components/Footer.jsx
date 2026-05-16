@@ -74,7 +74,7 @@ export default function Footer({ settings }) {
           <div className="footer-brand">
             <Link to="/" className="footer-logo">
               {logo ? (
-                <img src={logo} alt={bName} style={{ height: '40px', objectFit: 'contain' }} />
+                <img src={logo} alt={bName} className="site-logo-img" />
               ) : (
                 <>
                   <div className="brand-icon-sm"><BookOpen size={20} /></div>

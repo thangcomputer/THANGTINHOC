@@ -24,6 +24,14 @@
   margin-bottom: 1rem;
 }
 
+.footer-logo .site-logo-img {
+  height: 54px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+  display: block;
+}
+
 .brand-icon-sm {
   width: 38px;
   height: 38px;

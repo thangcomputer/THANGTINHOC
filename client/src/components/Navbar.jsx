@@ -76,7 +76,7 @@ export default function Navbar({ settings }) {
       <div className="container navbar-inner">
         <Link to="/" className="navbar-brand">
           {settings?.site_logo ? (
-            <img src={settings.site_logo} alt={settings?.site_name || 'Thắng Tin Học'} style={{ height: '40px', objectFit: 'contain' }} />
+            <img src={settings.site_logo} alt={settings?.site_name || 'Thắng Tin Học'} className="site-logo-img" />
           ) : (
             <>
               <div className="brand-icon">

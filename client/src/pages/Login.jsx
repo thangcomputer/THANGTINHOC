@@ -72,11 +72,10 @@ export default function Login() {
       <div className="auth-card">
         <div className="auth-brand">
           {siteLogo ? (
-            <img src={siteLogo} alt={siteName} style={{ height: '40px', objectFit: 'contain' }} />
+            <img src={siteLogo} alt={siteName} className="auth-brand-logo" />
           ) : (
             <div className="brand-icon"><BookOpen size={22} /></div>
           )}
-          <span>{siteName}</span>
         </div>
         <h1 className="auth-title">Chào Mừng Trở Lại!</h1>
         <p className="auth-subtitle">Đăng nhập để tiếp tục học tập</p>

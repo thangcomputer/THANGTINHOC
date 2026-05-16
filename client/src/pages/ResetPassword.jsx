@@ -71,11 +71,10 @@ export default function ResetPassword() {
       <div className="auth-card">
         <div className="auth-brand">
           {siteLogo ? (
-            <img src={siteLogo} alt={siteName} style={{ height: '40px', objectFit: 'contain' }} />
+            <img src={siteLogo} alt={siteName} className="auth-brand-logo" />
           ) : (
             <div className="brand-icon"><BookOpen size={22} /></div>
           )}
-          <span>{siteName}</span>
         </div>
         <h2 className="auth-title">Tạo Mật Khẩu Mới</h2>
         <p className="auth-subtitle">Vui lòng thiết lập mật khẩu mới cho tài khoản {email}</p>

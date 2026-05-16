@@ -30,6 +30,18 @@
   gap: 1rem;
 }
 
+.navbar-brand .site-logo-img {
+  height: 56px;
+  width: auto;
+  max-width: min(220px, 42vw);
+  object-fit: contain;
+  display: block;
+}
+
+.navbar.scrolled .navbar-brand .site-logo-img {
+  height: 50px;
+}
+
 .brand-icon {
   width: 48px;
   height: 48px;
@@ -257,4 +269,6 @@
   .user-name { display: none; }
   .navbar-brand .brand-sub { display: none; }
   .brand-name { font-size: 1.25rem; }
+  .navbar-brand .site-logo-img { height: 48px; max-width: 38vw; }
+  .navbar.scrolled .navbar-brand .site-logo-img { height: 44px; }
 }
