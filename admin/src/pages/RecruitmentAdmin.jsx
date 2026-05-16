@@ -3,6 +3,7 @@ import { Briefcase, Eye, Trash2, Search, Phone, Mail, MapPin, Award, Clock, Chec
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
+import EmptyState from '../components/EmptyState';
 
 const STATUS_MAP = {
   pending: { label: 'Chờ duyệt', color: '#f59e0b', bg: '#f59e0b15' },
@@ -164,13 +165,13 @@ export default function RecruitmentAdmin() {
                       </td>
                       <td>
                         <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
-                          style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                          style={{ color: 'var(--danger)' }} aria-label="Xóa hồ sơ"><Trash2 size={14} /></button>
                       </td>
                     </tr>
                   );
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Chưa có ứng viên nào</td></tr>
+                  <tr><td colSpan={5}><EmptyState icon={Briefcase} title="Chưa có ứng viên" message="Thử đổi bộ lọc hoặc từ khóa." /></td></tr>
                 )}
               </tbody>
             </table>

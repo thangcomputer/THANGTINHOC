@@ -65,7 +65,7 @@ export default function Footer({ settings }) {
   const logo = settings?.site_logo;
 
   return (
-    <footer className="footer">
+    <footer className="footer" id="site-footer">
       <div className="footer-wave" />
       <div className="container">
         <div className="footer-grid">

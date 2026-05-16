@@ -5,7 +5,7 @@ export function getClientSiteUrl() {
   if (typeof window !== 'undefined' && window.location?.origin) {
     const { origin, port } = window.location;
     if (port === '4288' || port === '4173') return 'http://127.0.0.1:5173';
-    return origin;
+    return origin.replace(/\/admin\/?$/, '') || origin;
   }
   return '';
 }

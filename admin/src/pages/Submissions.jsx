@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { downloadProtectedFile } from '../lib/download';
 import Loading from '../components/Loading';
+import EmptyState from '../components/EmptyState';
 
 export default function Submissions() {
   const [courses, setCourses] = useState([]);
@@ -100,7 +101,7 @@ export default function Submissions() {
       </div>
 
       <div className="card">
-        <div className="table-wrap">
+        <div className="table-wrap responsive-table">
           <table>
             <thead>
               <tr>
@@ -117,9 +118,7 @@ export default function Submissions() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                    Chưa có bài tập nào
-                  </td>
+                  <td colSpan="8"><EmptyState icon={FileText} title="Chưa có bài nộp" message="Học viên chưa nộp bài cho khóa học này." /></td>
                 </tr>
               ) : filtered.map(s => (
                 <tr key={s.id}>

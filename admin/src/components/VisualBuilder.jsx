@@ -3,8 +3,9 @@ import {
   GripVertical, Eye, EyeOff, Plus, Trash2, ChevronLeft,
   Layout, BarChart, Monitor, Target, Laptop, BookOpen, Quote, Handshake,
   Megaphone, Settings, Layers, X, Grip, Package, Columns,
-  Save, RefreshCcw, ArrowUp, ArrowDown, Palette, Search
+  Save, RefreshCcw, ArrowUp, ArrowDown, Palette, Search, PanelRightOpen, PanelRightClose,
 } from 'lucide-react';
+import HomeEditorPreview from './HomeEditorPreview';
 
 const COLUMN_LAYOUTS = [
   { id: '1', label: '1 cột', cols: 1, template: '1fr' },
@@ -36,7 +37,9 @@ export default function VisualBuilder({
   setStats, setFeatures, setTestimonials, setPartners, setVisualFeatures,
   customSections, setCustomSections,
   markChanged, onSwitchToTabs, onSave, saving, hasChanges,
+  previewRefreshKey = 0,
 }) {
+  const [liveSitePreview, setLiveSitePreview] = useState(true);
   const [selectedSection, setSelectedSection] = useState(null);
   const [sidebarTab, setSidebarTab] = useState('widgets');
   const [showStructure, setShowStructure] = useState(true);
@@ -581,6 +584,12 @@ export default function VisualBuilder({
   const delBtn = { background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '4px', flexShrink: 0 };
   const ctrlBtn = { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', cursor: 'pointer', padding: '3px', borderRadius: '3px', display: 'flex', alignItems: 'center' };
 
+  const livePreviewTab =
+    selectedSection ||
+    sectionOrder.find((id) => !sectionVisibility[id]) ||
+    sectionOrder[0] ||
+    'hero';
+
   return (
     <div style={{ display: 'flex', gap: '0', height: 'calc(100vh - 130px)', margin: '-24px -32px -32px', borderTop: '1px solid var(--border)' }}>
       {/* ═══ LEFT SIDEBAR — Elementor Widget Panel ═══ */}
@@ -749,6 +758,15 @@ export default function VisualBuilder({
                 <Save size={11} /> {saving ? 'Lưu...' : 'Lưu'}
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setLiveSitePreview((v) => !v)}
+              style={{ background: liveSitePreview ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: '6px', fontSize: '0.65rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+              title="Xem trang chủ thật (sau khi lưu)"
+            >
+              {liveSitePreview ? <PanelRightClose size={10} /> : <PanelRightOpen size={10} />}
+              Trang thật
+            </button>
             <button onClick={resetAll}
               style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'rgba(255,255,255,0.5)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.65rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <RefreshCcw size={10} /> Reset
@@ -873,6 +891,13 @@ export default function VisualBuilder({
           <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', fontSize: '0.62rem', color: 'var(--text-muted)' }}>
             {sectionOrder.filter(id => !sectionVisibility[id]).length}/{sectionOrder.length} hiển thị
           </div>
+        </div>
+      )}
+
+
+      {liveSitePreview && (
+        <div className="home-editor-visual-live-preview">
+          <HomeEditorPreview activeTab={livePreviewTab} refreshKey={previewRefreshKey} />
         </div>
       )}
 

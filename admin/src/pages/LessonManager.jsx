@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, ArrowLeft, Save, Play, BookOpen, X, Loader2, Upload
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
+import EmptyState from '../components/EmptyState';
 import { useConfirm } from '../components/ConfirmProvider';
 
 export default function LessonManager() {
@@ -151,7 +152,7 @@ export default function LessonManager() {
             </thead>
             <tbody>
               {lessons.length === 0 ? (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Chưa có bài học nào</td></tr>
+                <tr><td colSpan="7"><EmptyState icon={BookOpen} title="Chưa có bài học" message="Nhấn Thêm Bài Mới để bắt đầu." actionLabel="Thêm bài mới" onAction={() => openForm()} /></td></tr>
               ) : lessons.map(lesson => (
                 <tr key={lesson.id}>
                   <td>
@@ -184,10 +185,10 @@ export default function LessonManager() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button className="btn btn-secondary btn-sm btn-icon" onClick={() => openForm(lesson)} title="Sửa">
+                      <button className="btn btn-secondary btn-sm btn-icon" onClick={() => openForm(lesson)} title="Sửa" aria-label="Sửa bài học">
                         <Edit size={14} />
                       </button>
-                      <button className="btn btn-secondary btn-sm btn-icon" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(lesson.id)} title="Xóa">
+                      <button className="btn btn-secondary btn-sm btn-icon" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(lesson.id)} title="Xóa" aria-label="Xóa bài học">
                         <Trash2 size={14} />
                       </button>
                     </div>

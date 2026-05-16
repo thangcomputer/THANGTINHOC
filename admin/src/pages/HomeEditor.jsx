@@ -10,6 +10,11 @@ import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
 import VisualBuilder from '../components/VisualBuilder';
+import HomeEditorNav from '../components/HomeEditorNav';
+import HomeEditorSectionHead from '../components/HomeEditorSectionHead';
+import HomeEditorPreview from '../components/HomeEditorPreview';
+import { buildSectionSettings, getSectionMeta } from '../lib/homeEditorSections';
+import HomeEditorOnboarding from '../components/HomeEditorOnboarding';
 
 const TABS = [
   { id: 'hero', label: 'Hero Banner', icon: Layout, desc: 'Banner chính & nội dung chào đón' },
@@ -24,6 +29,15 @@ const TABS = [
   { id: 'promo', label: 'Khuyến Mãi', icon: Award, desc: 'Popup quảng bá' },
   { id: 'footer', label: 'Chân Trang', icon: Columns, desc: 'Cấu hình Footer' },
 ];
+
+const TAB_GROUPS = [
+  { title: 'Đầu trang', ids: ['hero', 'stats', 'features'] },
+  { title: 'Học tập', ids: ['learning-path', 'visual-learning', 'courses'] },
+  { title: 'Tin cậy', ids: ['testimonials', 'partners'] },
+  { title: 'Cuối trang', ids: ['cta', 'promo', 'footer'] },
+];
+
+const TAB_BY_ID = Object.fromEntries(TABS.map((t) => [t.id, t]));
 
 const ICON_OPTIONS = [
   'Zap', 'Shield', 'Award', 'Users', 'Clock', 'Star', 'Heart', 'BookOpen',
@@ -206,28 +220,18 @@ const ItemCard = ({ index, label, onRemove, onMoveUp, onMoveDown, total, childre
 
 // ─── AnimPicker (outside HomeEditor, receives settings+updateSetting as props) ───
 const AnimPicker = ({ settingKey, label, settings, updateSetting }) => (
-  <div className="card" style={{ marginBottom: '20px' }}>
-    <div className="card-body" style={{ padding: '16px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '200px' }}>
-          <Palette size={16} style={{ color: 'var(--primary)', opacity: 0.7 }} />
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            Hiệu ứng cuộn: {label}
-          </span>
-        </div>
-        <select
-          className="form-control"
-          value={settings[settingKey] || 'fade-up'}
-          onChange={e => updateSetting(settingKey, e.target.value)}
-          style={{ maxWidth: '320px', fontSize: '0.85rem' }}
-        >
-          {ANIMATION_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </div>
-    </div>
-  </div>
+  <details className="home-editor-advanced">
+    <summary>
+      <Palette size={15} />
+      <span>Hiệu ứng cuộn — {label}</span>
+      <span className="home-editor-advanced-value">
+        {ANIMATION_OPTIONS.find((o) => o.value === (settings[settingKey] || 'fade-up'))?.label || 'Fade Up'}
+      </span>
+    </summary>
+    <select className="form-control" value={settings[settingKey] || 'fade-up'} onChange={(e) => updateSetting(settingKey, e.target.value)}>
+      {ANIMATION_OPTIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+    </select>
+  </details>
 );
 
 export default function HomeEditor() {
@@ -261,7 +265,10 @@ export default function HomeEditor() {
   const [visualFeatures, setVisualFeatures] = useState([]);
   const [footerColumns, setFooterColumns] = useState([]);
   const [customSections, setCustomSections] = useState({});
-  const [viewMode, setViewMode] = useState('tabs'); // 'tabs' | 'visual'
+  const [viewMode, setViewMode] = useState('visual'); // 'tabs' | 'visual'
+  const [showPreview, setShowPreview] = useState(true);
+  const [savingSection, setSavingSection] = useState(false);
+  const [previewTick, setPreviewTick] = useState(0);
 
   // Elementor-style section management
   const DEFAULT_SECTIONS = ['hero', 'stats', 'features', 'learning-path', 'visual-learning', 'courses', 'testimonials', 'partners', 'cta'];
@@ -348,10 +355,56 @@ export default function HomeEditor() {
       await api.post('/settings/bulk', { settings: dataToSave });
       toast.success('✅ Đã lưu thay đổi giao diện thành công!');
       setHasChanges(false);
+      setPreviewTick((t) => t + 1);
     } catch {
       toast.error('Lỗi khi lưu cấu hình');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const editorCtx = () => ({
+    settings, features, testimonials, stats, partners, learningPath, visualFeatures, footerColumns,
+    sectionOrder, sectionVisibility, customSections,
+  });
+
+  const handleSaveSection = async () => {
+    setSavingSection(true);
+    try {
+      const partial = buildSectionSettings(activeTab, editorCtx());
+      await api.post('/settings/bulk', { settings: partial });
+      toast.success(`Đã lưu phần: ${TAB_BY_ID[activeTab]?.label || activeTab}`);
+      setPreviewTick((t) => t + 1);
+    } catch {
+      toast.error('Lỗi khi lưu phần này');
+    } finally {
+      setSavingSection(false);
+    }
+  };
+
+  const getSectionAdd = () => {
+    switch (activeTab) {
+      case 'stats':
+        return () => statH.add({ value: '1,000+', label: 'Nhãn mới', icon: 'Users' });
+      case 'features':
+        return () => featureH.add({ title: 'Tính năng mới', desc: 'Mô tả chi tiết', icon: 'Zap' });
+      case 'learning-path':
+        return () => pathH.add({
+          step: String(learningPath.length + 1).padStart(2, '0'),
+          title: 'Bước mới',
+          desc: 'Mô tả bước',
+          icon: 'Target',
+        });
+      case 'visual-learning':
+        return () => visualH.add({ emoji: '📁', title: 'Tính năng mới', desc: 'Mô tả' });
+      case 'testimonials':
+        return () => testimonialH.add({ name: 'Họ tên', role: 'Vai trò', text: 'Nội dung cảm nhận', rating: 5, avatar: '' });
+      case 'partners':
+        return () => partnerH.add({ name: 'Công ty mới', logo: '' });
+      case 'footer':
+        return addFooterCol;
+      default:
+        return null;
     }
   };
 
@@ -405,10 +458,10 @@ export default function HomeEditor() {
           {/* View Mode Toggle */}
           <div style={{ display: 'flex', borderRadius: 'var(--radius)', border: '1px solid var(--border)', overflow: 'hidden' }}>
             <button onClick={() => setViewMode('visual')} style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', background: viewMode === 'visual' ? 'var(--primary)' : 'var(--bg-card)', color: viewMode === 'visual' ? '#fff' : 'var(--text-secondary)', transition: 'all 0.2s' }}>
-              <Eye size={14} /> Xem trực quan
+              <Eye size={14} /> Sắp xếp trang
             </button>
             <button onClick={() => setViewMode('tabs')} style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 600, border: 'none', borderLeft: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', background: viewMode === 'tabs' ? 'var(--primary)' : 'var(--bg-card)', color: viewMode === 'tabs' ? '#fff' : 'var(--text-secondary)', transition: 'all 0.2s' }}>
-              <Layout size={14} /> Chi tiết
+              <Layout size={14} /> Chỉnh nội dung
             </button>
           </div>
           {hasChanges && (
@@ -421,6 +474,8 @@ export default function HomeEditor() {
           </button>
         </div>
       </div>
+
+      <HomeEditorOnboarding />
 
       {/* ═══ VISUAL BUILDER (Elementor-style) ═══ */}
       {viewMode === 'visual' && (
@@ -436,38 +491,33 @@ export default function HomeEditor() {
           markChanged={markChanged}
           onSwitchToTabs={(tabId) => { setViewMode('tabs'); setActiveTab(tabId); }}
           onSave={handleSave} saving={saving} hasChanges={hasChanges}
+          previewRefreshKey={previewTick}
         />
       )}
 
       {/* ═══ TABS MODE ═══ */}
       {viewMode === 'tabs' && (<>
-      {/* Tabs */}
-      <div className="tabs" style={{ flexWrap: 'wrap' }}>
-        {TABS.map(tab => (
-          <button 
-            key={tab.id}
-            className={`tab-item ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            <tab.icon size={15} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Description */}
-      {activeTabData && (
-        <div style={{ marginBottom: '24px', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <activeTabData.icon size={16} style={{ color: 'var(--primary)', opacity: 0.7 }} />
-          {activeTabData.desc}
-          <button onClick={() => setViewMode('visual')} style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 10px', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Eye size={12} /> Xem tổng quan
-          </button>
-        </div>
-      )}
-
-      {/* Tab Content */}
-      <div style={{ paddingBottom: '4rem' }}>
+      <div className="home-editor-shell">
+        <HomeEditorNav
+          groups={TAB_GROUPS}
+          tabById={TAB_BY_ID}
+          activeTab={activeTab}
+          onSelect={setActiveTab}
+          onVisual={() => setViewMode('visual')}
+        />
+        <div className="home-editor-main">
+          <HomeEditorSectionHead
+            tab={activeTabData}
+            {...(getSectionMeta(activeTab, editorCtx()) || {})}
+            onAdd={getSectionAdd()}
+            addLabel={getSectionMeta(activeTab, editorCtx())?.addLabel}
+            onSaveSection={handleSaveSection}
+            savingSection={savingSection}
+            showPreview={showPreview}
+            onTogglePreview={() => setShowPreview((v) => !v)}
+          />
+          <div className={`home-editor-split${showPreview ? ' has-preview' : ''}`}>
+          <div className="home-editor-content">
 
         {/* ═══ HERO TAB ═══ */}
         {activeTab === 'hero' && (
@@ -601,8 +651,7 @@ export default function HomeEditor() {
         {activeTab === 'stats' && (
           <div className="animate-fade-in">
             <AnimPicker settingKey="anim_stats" label="Thống Kê" settings={settings} updateSetting={updateSetting} />
-            <SectionCard title="Con Số Ấn Tượng" icon={BarChart} count={stats.length}
-              onAdd={() => statH.add({ value: '1,000+', label: 'Nhãn mới', icon: 'Users' })} addText="Thêm mục">
+            <SectionCard title="Con Số Ấn Tượng" icon={BarChart} count={stats.length}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
                 {stats.map((s, i) => (
                   <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
@@ -641,14 +690,6 @@ export default function HomeEditor() {
         {activeTab === 'features' && (
           <div className="animate-fade-in">
             <AnimPicker settingKey="anim_features" label="Tính Năng" settings={settings} updateSetting={updateSetting} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                <strong>{features.length}</strong> tính năng đang hiển thị
-              </div>
-              <button className="btn btn-outline btn-sm" onClick={() => featureH.add({ title: 'Tính năng mới', desc: 'Mô tả chi tiết', icon: 'Zap' })}>
-                <Plus size={16} /> Thêm tính năng
-              </button>
-            </div>
             <div className="cms-item-grid">
               {features.map((f, i) => (
                 <ItemCard key={i} index={i} label="Tính năng" total={features.length}
@@ -683,14 +724,6 @@ export default function HomeEditor() {
         {activeTab === 'learning-path' && (
           <div className="animate-fade-in">
             <AnimPicker settingKey="anim_learning_path" label="Lộ Trình Học" settings={settings} updateSetting={updateSetting} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                <strong>{learningPath.length}</strong> bước trong lộ trình
-              </div>
-              <button className="btn btn-outline btn-sm" onClick={() => pathH.add({ step: String(learningPath.length + 1).padStart(2, '0'), title: 'Bước mới', desc: 'Mô tả bước', icon: 'Target' })}>
-                <Plus size={16} /> Thêm bước
-              </button>
-            </div>
             <div className="cms-item-grid">
               {learningPath.map((p, i) => (
                 <ItemCard key={i} index={i} label="Bước" total={learningPath.length}
@@ -881,14 +914,6 @@ export default function HomeEditor() {
         {activeTab === 'testimonials' && (
           <div className="animate-fade-in">
             <AnimPicker settingKey="anim_testimonials" label="Cảm Nhận" settings={settings} updateSetting={updateSetting} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                <strong>{testimonials.length}</strong> cảm nhận đang hiển thị
-              </div>
-              <button className="btn btn-outline btn-sm" onClick={() => testimonialH.add({ name: 'Họ tên', role: 'Vai trò', text: 'Nội dung cảm nhận', rating: 5, avatar: '' })}>
-                <Plus size={16} /> Thêm cảm nhận
-              </button>
-            </div>
             <div className="cms-item-grid">
               {testimonials.map((t, i) => (
                 <ItemCard key={i} index={i} label="Cảm nhận" total={testimonials.length}
@@ -960,14 +985,6 @@ export default function HomeEditor() {
         {activeTab === 'partners' && (
           <div className="animate-fade-in">
             <AnimPicker settingKey="anim_partners" label="Đối Tác" settings={settings} updateSetting={updateSetting} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                <strong>{partners.length}</strong> đối tác đang hiển thị
-              </div>
-              <button className="btn btn-outline btn-sm" onClick={() => partnerH.add({ name: 'Công ty mới', logo: '' })}>
-                <Plus size={16} /> Thêm đối tác
-              </button>
-            </div>
             <div className="cms-item-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
               {partners.map((p, i) => (
                 <ItemCard key={i} index={i} label="Đối tác" total={partners.length}
@@ -1166,8 +1183,7 @@ export default function HomeEditor() {
         {/* ═══ FOOTER TAB ═══ */}
         {activeTab === 'footer' && (
           <div className="animate-fade-in">
-            <SectionCard title="Cấu Hình Chân Trang (Footer)" icon={Columns} 
-              onAdd={addFooterCol} addText="Thêm Cột">
+            <SectionCard title="Cấu Hình Chân Trang (Footer)" icon={Columns}>
               <p style={{ margin: '-8px 0 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 Tối đa 5 cột liên kết. Thông tin chính lấy từ Cài Đặt Chung.
               </p>
@@ -1211,6 +1227,10 @@ export default function HomeEditor() {
             </SectionCard>
           </div>
         )}
+          </div>
+          {showPreview ? <HomeEditorPreview activeTab={activeTab} refreshKey={previewTick} /> : null}
+          </div>
+        </div>
       </div>
       </>)}
 

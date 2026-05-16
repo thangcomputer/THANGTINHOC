@@ -3,6 +3,7 @@ import { MessageSquare, Trash2, Eye, Phone, Search, CheckCircle, RefreshCcw } fr
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import Loading from '../components/Loading';
+import EmptyState from '../components/EmptyState';
 import { useConfirm } from '../components/ConfirmProvider';
 
 const STATUS_MAP = {
@@ -92,7 +93,7 @@ export default function Inquiries() {
             {unreadCount > 0 && <span style={{ color: '#6366f1', fontWeight: 700 }}> • {unreadCount} chưa đọc</span>}
           </p>
         </div>
-        <button className="btn btn-outline btn-sm" onClick={fetchMessages}>
+        <button type="button" className="btn btn-outline btn-sm" onClick={fetchMessages} aria-label="Làm mới danh sách">
           <RefreshCcw size={15} /> Làm mới
         </button>
       </div>
@@ -118,6 +119,7 @@ export default function Inquiries() {
         {/* List */}
         <div className="card">
           <div className="card-body" style={{ padding: 0 }}>
+            <div className="table-wrap responsive-table">
             <table className="table">
               <thead>
                 <tr>
@@ -175,9 +177,10 @@ export default function Inquiries() {
                       {new Date(m.createdAt).toLocaleDateString('vi-VN')}
                     </td>
                     <td>
-                      <button className="btn btn-ghost btn-sm"
+                      <button type="button" className="btn btn-ghost btn-sm"
                         onClick={e => { e.stopPropagation(); deleteMessage(m.id); }}
-                        style={{ color: 'var(--danger)' }}>
+                        style={{ color: 'var(--danger)' }}
+                        aria-label="Xóa tin nhắn">
                         <Trash2 size={14} />
                       </button>
                     </td>
@@ -185,14 +188,14 @@ export default function Inquiries() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                      <MessageSquare size={36} style={{ opacity: 0.2, display: 'block', margin: '0 auto 8px' }} />
-                      Không có tin nhắn nào
+                    <td colSpan={6}>
+                      <EmptyState icon={MessageSquare} title="Không có tin nhắn" message="Thử đổi bộ lọc hoặc từ khóa tìm kiếm." />
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 

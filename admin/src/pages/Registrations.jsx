@@ -3,6 +3,7 @@ import { ClipboardList, Eye, CheckCircle, Clock, Trash2, Phone, User, BookOpen, 
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import Loading from '../components/Loading';
+import EmptyState from '../components/EmptyState';
 
 const STATUS_MAP = {
   pending: { label: 'Chờ xử lý', color: '#f59e0b', bg: '#f59e0b15' },
@@ -135,12 +136,12 @@ export default function Registrations() {
                     </td>
                     <td>
                       <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
-                        style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                        style={{ color: 'var(--danger)' }} aria-label="Xóa ghi danh"><Trash2 size={14} /></button>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Chưa có đăng ký nào</td></tr>
+                  <tr><td colSpan={6}><EmptyState icon={ClipboardList} title="Chưa có ghi danh" message="Thử đổi bộ lọc hoặc từ khóa." /></td></tr>
                 )}
               </tbody>
             </table>
