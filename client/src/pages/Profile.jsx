@@ -87,6 +87,9 @@ export default function Profile() {
     }
   };
 
+  const adminHref = import.meta.env.VITE_ADMIN_URL || (import.meta.env.PROD ? '/admin' : 'http://localhost:5174');
+  const adminLinkExternal = !adminHref.startsWith('/');
+
   return (
     <div className="profile-page">
       <div className="container profile-container">
@@ -121,7 +124,11 @@ export default function Profile() {
                 <Lock size={18} /> Đổi mật khẩu
               </button>
               {user?.role === 'admin' && (
-                <a href={import.meta.env.VITE_ADMIN_URL || "http://localhost:5174"} target="_blank" rel="noreferrer" className="nav-item">
+                <a
+                  href={adminHref}
+                  className="nav-item"
+                  {...(adminLinkExternal ? { target: '_blank', rel: 'noreferrer' } : {})}
+                >
                   <LayoutDashboard size={18} /> Admin Dashboard
                 </a>
               )}

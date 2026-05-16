@@ -31,9 +31,11 @@ const PrivateRoute = ({ children }) => {
   return children;
 };
 
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined;
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Toaster position="bottom-right" />
       <Routes>
         <Route path="/login" element={<Login />} />

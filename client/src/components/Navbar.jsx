@@ -58,6 +58,9 @@ export default function Navbar({ settings }) {
     navigate('/');
   };
 
+  const adminHref = import.meta.env.VITE_ADMIN_URL || (import.meta.env.PROD ? '/admin' : 'http://localhost:5174');
+  const adminLinkExternal = !adminHref.startsWith('/');
+
   const navLinks = [
     { to: '/', label: 'Trang Chủ' },
     { to: '/gioi-thieu', label: 'Giới Thiệu' },
@@ -134,7 +137,11 @@ export default function Navbar({ settings }) {
                     <Activity size={16} /> Hoạt Động Của Tôi
                   </Link>
                   {user?.role === 'admin' && (
-                    <a href={import.meta.env.VITE_ADMIN_URL || 'http://localhost:5174'} className="dropdown-item" target="_blank" rel="noreferrer">
+                    <a
+                      href={adminHref}
+                      className="dropdown-item"
+                      {...(adminLinkExternal ? { target: '_blank', rel: 'noreferrer' } : {})}
+                    >
                       <LayoutDashboard size={16} /> Admin Panel
                     </a>
                   )}

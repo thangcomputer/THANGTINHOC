@@ -1,6 +1,12 @@
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
 
+export function loginPageHref() {
+  const base = import.meta.env.BASE_URL;
+  const prefix = base.endsWith('/') ? base.slice(0, -1) : base;
+  return `${prefix}/login`;
+}
+
 function resolveApiBase() {
   const env = (import.meta.env.VITE_API_URL || '').trim();
   if (import.meta.env.DEV) return env || 'http://localhost:5000/api';
@@ -27,7 +33,7 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401) {
       useAuthStore.getState().logout();
-      window.location.href = '/login';
+      window.location.href = loginPageHref();
     }
     return Promise.reject(err);
   }

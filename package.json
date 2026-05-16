@@ -1,0 +1,1 @@
+{"name":"thangtinhoc","private":true,"scripts":{"merge:site":"node scripts/merge-site-dist.cjs","build:merged":"npm run build --prefix client && npm run build --prefix admin && node scripts/merge-site-dist.cjs","preview:merged":"npm run merge:site && npx --yes serve site_dist -l 4173"}}

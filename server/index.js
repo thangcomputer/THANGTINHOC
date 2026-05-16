@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const hpp = require('hpp');
 const path = require('path');
+const fs = require('fs');
 
 const authRoutes = require('./routes/auth');
 const courseRoutes = require('./routes/courses');
@@ -149,6 +150,37 @@ app.use('/api/ai', require('./routes/ai'));
 // SEO: sitemap.xml, robots.txt, Schema.org JSON-LD
 app.use('/', require('./routes/seo'));
 
+const clientDist = path.join(__dirname, '..', 'client', 'dist');
+const adminDist = path.join(__dirname, '..', 'admin', 'dist');
+const serveSpaBundles =
+  process.env.NODE_ENV === 'production' && process.env.SERVE_FRONTEND !== 'false';
+
+if (serveSpaBundles) {
+  // Admin SPA: https://domain.com/admin (no subdomain)
+  if (fs.existsSync(adminDist)) {
+    app.use('/admin', express.static(adminDist));
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+      const p = req.path || '';
+      if (!p.startsWith('/admin')) return next();
+      res.sendFile(path.join(adminDist, 'index.html'), (err) => (err ? next(err) : null));
+    });
+    console.log('📎 Admin SPA: /admin →', adminDist);
+  }
+  // Public site SPA
+  if (fs.existsSync(clientDist)) {
+    app.use(express.static(clientDist));
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+      const p = req.path || '';
+      if (p.startsWith('/api') || p.startsWith('/uploads') || p.startsWith('/admin')) {
+        return next();
+      }
+      res.sendFile(path.join(clientDist, 'index.html'), (err) => (err ? next(err) : null));
+    });
+    console.log('📎 Client SPA:', clientDist);
+  }
+}
 
 // 404 handler
 app.use((req, res) => {
