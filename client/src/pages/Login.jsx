@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, BookOpen, Mail, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { getDeviceId } from '../lib/deviceId';
 import useAuthStore from '../store/authStore';
 import './Auth.css';
 
@@ -31,9 +32,12 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api.post('/auth/login', form);
-      const { user, token, sessionWarning } = res.data.data;
-      login(user, token);
+      const deviceId = getDeviceId();
+      const res = await api.post('/auth/login', { ...form, deviceId }, {
+        headers: { 'X-Device-Id': deviceId },
+      });
+      const { user, token, sessionWarning, deviceId: serverDeviceId } = res.data.data;
+      login(user, token, serverDeviceId);
       if (sessionWarning) toast(sessionWarning, { icon: '⚠️', duration: 6000 });
       toast.success('Đăng nhập thành công!');
       navigate(redirectTo, { replace: true });

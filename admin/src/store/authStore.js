@@ -5,10 +5,11 @@ const useAuthStore = create((set) => ({
   token: localStorage.getItem('admin_token') || null,
   isAuthenticated: !!localStorage.getItem('admin_token'),
 
-  login: (user, token) => {
+  login: (user, token, deviceId) => {
     if (user.role !== 'admin') throw new Error('Cần quyền Admin để truy cập');
     localStorage.setItem('admin_token', token);
     localStorage.setItem('admin_user', JSON.stringify(user));
+    if (deviceId) localStorage.setItem('tt_device_id', deviceId);
     set({ user, token, isAuthenticated: true });
   },
 

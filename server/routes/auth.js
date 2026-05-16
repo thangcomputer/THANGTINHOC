@@ -19,13 +19,14 @@ function userAuthPayload(user) {
 
 async function respondWithSession(req, res, user, message, status = 200) {
   try {
-    const { token, sessionWarning } = await issueAuthSession(req, user);
+    const { token, sessionWarning, deviceId } = await issueAuthSession(req, user);
     const body = {
       success: true,
       message,
       data: {
         token,
         user: userAuthPayload(user),
+        deviceId,
       },
     };
     if (sessionWarning) body.data.sessionWarning = sessionWarning;

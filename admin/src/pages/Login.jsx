@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Terminal, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { getDeviceId } from '../lib/deviceId';
 import useAuthStore from '../store/authStore';
 
 export default function Login() {
@@ -20,10 +21,13 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api.post('/auth/login', form);
-      const { user, token, sessionWarning } = res.data.data;
+      const deviceId = getDeviceId();
+      const res = await api.post('/auth/login', { ...form, deviceId }, {
+        headers: { 'X-Device-Id': deviceId },
+      });
+      const { user, token, sessionWarning, deviceId: serverDeviceId } = res.data.data;
       if (user.role !== 'admin') throw new Error('Cần quyền Admin để truy cập');
-      login(user, token);
+      login(user, token, serverDeviceId);
       if (sessionWarning) toast(sessionWarning, { icon: '⚠️', duration: 6000 });
       toast.success('Đăng nhập Admin thành công!');
       navigate('/');

@@ -26,9 +26,17 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('admin_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
-  config.headers['X-Device-Id'] = getDeviceId();
-  if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
-    config.data = { ...config.data, deviceId: getDeviceId() };
+  let deviceId;
+  try {
+    deviceId = getDeviceId();
+  } catch {
+    deviceId = localStorage.getItem('tt_device_id') || '';
+  }
+  if (deviceId) {
+    config.headers['X-Device-Id'] = deviceId;
+    if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
+      config.data = { ...config.data, deviceId };
+    }
   }
   return config;
 });
