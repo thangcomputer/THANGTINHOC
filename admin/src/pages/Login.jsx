@@ -32,7 +32,10 @@ export default function Login() {
       toast.success('Đăng nhập Admin thành công!');
       navigate('/');
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Đăng nhập thất bại');
+      const msg = err.response?.data?.message || err.message || 'Đăng nhập thất bại';
+      const code = err.response?.data?.code;
+      console.error('[admin login]', code, err.response?.status, msg);
+      toast.error(code ? `${msg} (${code})` : msg);
     } finally {
       setLoading(false);
     }

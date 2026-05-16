@@ -17,5 +17,4 @@ export function getDeviceId() {
   }
 }
 
-// Tao ma thiet bi ngay khi import module
 getDeviceId();

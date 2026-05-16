@@ -1,4 +1,4 @@
-﻿const prisma = require('./db');
+const prisma = require('./db');
 
 const IDLE_MS = parseInt(process.env.SESSION_IDLE_MINUTES || '60', 10) * 60 * 1000;
 
@@ -25,45 +25,35 @@ function isSessionExpired(session) {
 
 async function createUserSession(userId, deviceId, ipAddress, userAgent) {
   const existingForUser = await prisma.userSession.findUnique({ where: { userId } });
-  const existingForIp = await prisma.userSession.findFirst({
-    where: { ipAddress, userId: { not: userId } },
-  });
-
-  if (existingForIp) {
-    const err = new Error('IP_IN_USE_MSG');
-    err.status = 403;
-    err.code = 'IP_IN_USE';
-    throw err;
-  }
 
   let sessionWarning = null;
 
   if (existingForUser) {
     const sameDevice = existingForUser.deviceId === deviceId;
-    const sameIp = existingForUser.ipAddress === ipAddress;
 
-    if (sameDevice && sameIp) {
+    if (sameDevice) {
       const session = await prisma.userSession.update({
         where: { id: existingForUser.id },
-        data: { lastActivityAt: new Date(), userAgent: userAgent || existingForUser.userAgent },
+        data: {
+          ipAddress,
+          lastActivityAt: new Date(),
+          userAgent: userAgent || existingForUser.userAgent,
+        },
       });
       return { session, sessionWarning: null };
     }
 
-    if (!sameDevice) {
-      sessionWarning = 'SESSION_DEVICE_WARNING';
-    } else if (!sameIp) {
-      const err = new Error('IP_MISMATCH_MSG');
-      err.status = 403;
-      err.code = 'IP_MISMATCH';
-      throw err;
-    }
-
+    sessionWarning = 'SESSION_DEVICE_WARNING';
     await prisma.userSession.delete({ where: { id: existingForUser.id } });
   }
 
   const session = await prisma.userSession.create({
-    data: { userId, deviceId, ipAddress, userAgent: userAgent || null },
+    data: {
+      userId,
+      deviceId,
+      ipAddress,
+      userAgent: userAgent || null,
+    },
   });
 
   return { session, sessionWarning };
@@ -94,16 +84,9 @@ async function validateUserSession(sessionId, userId, deviceId, ipAddress) {
     throw err;
   }
 
-  if (session.ipAddress !== ipAddress) {
-    const err = new Error('SESSION_IP_MSG');
-    err.status = 403;
-    err.code = 'SESSION_IP';
-    throw err;
-  }
-
   await prisma.userSession.update({
     where: { id: session.id },
-    data: { lastActivityAt: new Date() },
+    data: { lastActivityAt: new Date(), ipAddress },
   });
 
   return session;
@@ -113,24 +96,11 @@ async function destroyUserSession(userId) {
   await prisma.userSession.deleteMany({ where: { userId } });
 }
 
-const SESSION_MESSAGES = {
-  IP_IN_USE: null,
-  IP_MISMATCH: null,
-  SESSION_INVALID: null,
-  SESSION_IDLE: null,
-  SESSION_DEVICE: null,
-  SESSION_IP: null,
-  SESSION_DEVICE_WARNING: null,
-};
-
 function localizeSessionError(err) {
   const map = {
-    IP_IN_USE: 'Dia chi IP nay da co tai khoan dang nhap. Vui long dang xuat tai khoan kia truoc.',
-    IP_MISMATCH: 'Tai khoan da gan voi dia chi IP khac.',
     SESSION_INVALID: 'Phien dang nhap khong hop le. Vui long dang nhap lai.',
     SESSION_IDLE: 'Phien het han do khong hoat dong 1 gio. Vui long dang nhap lai.',
     SESSION_DEVICE: 'Phien da ket thuc do dang nhap tu thiet bi khac.',
-    SESSION_IP: 'Phien khong khop dia chi IP.',
   };
   if (err.code && map[err.code]) err.message = map[err.code];
   return err;
@@ -138,7 +108,7 @@ function localizeSessionError(err) {
 
 function localizeSessionWarning(code) {
   if (code === 'SESSION_DEVICE_WARNING') {
-    return 'Canh bao: Tai khoan dang nhap thiet bi moi. Phien cu da dang xuat.';
+    return 'Canh bao: Tai khoan dang nhap tren thiet bi moi. Phien cu da dang xuat.';
   }
   return code;
 }
